@@ -9,6 +9,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import "./style.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import NotFound from "./components/NotFound";
+import BackToTop from "./components/BackToTop";
+import { HelmetProvider } from 'react-helmet-async';
 
 // Single lazy-loaded Home component that contains all sections
 const Home = lazy(() => import("./components/Home/Home"));
@@ -58,24 +60,27 @@ class ErrorBoundary extends React.Component {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <Router>
-          <SEO />
-          <div className="App">
-            <Navbar />
-            <Suspense fallback={<Loader />}>
-              <ErrorBoundary>
-                <ScrollToTop />
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </ErrorBoundary>
-            </Suspense>
-            <Footer />
-          </div>
-        </Router>
-      </ThemeProvider>
+      <HelmetProvider>
+        <ThemeProvider>
+          <Router>
+            <SEO />
+            <div className="App">
+              <Navbar />
+              <BackToTop />
+              <Suspense fallback={<Loader />}>
+                <ErrorBoundary>
+                  <ScrollToTop />
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
+              </Suspense>
+              <Footer />
+            </div>
+          </Router>
+        </ThemeProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   );
 }

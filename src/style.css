@@ -1094,14 +1094,16 @@ p, li, span {
 
 /* Terminal-like Links */
 a {
-  color: var(--imp-text-color) !important;
+  color: var(--primary-color) !important;
   text-decoration: none !important;
-  border-bottom: 1px dotted var(--imp-text-color) !important;
+  border-bottom: 1px dotted var(--primary-color) !important;
+  transition: color 0.2s, border-bottom 0.2s;
 }
 
 a:hover {
-  color: var(--hover-color) !important;
-  border-bottom: 1px solid var(--hover-color) !important;
+  color: var(--secondary-color) !important;
+  border-bottom: 2px solid var(--secondary-color) !important;
+  text-decoration: underline !important;
 }
 
 /* Terminal-like Code Blocks */
