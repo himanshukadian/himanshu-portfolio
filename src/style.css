@@ -486,8 +486,8 @@ button:focus {
 }
 
 .footer h3 {
-  font-size: 1em;
-  color: white !important;
+  font-size: 1em !important;
+  /* color: white !important; */
   margin-top: 0.5em !important;
   margin-bottom: 0.5em !important;
 }
@@ -2170,4 +2170,11 @@ section, .about-section, .project-section, .resume-section, .contact-section {
     padding: 1.2rem !important;
     border-radius: 12px !important;
   }
+}
+
+/* Remove all borders, backgrounds, and box-shadows from about section lists */
+.about-section ul, .about-section li, .about-card ul, .about-card li {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
