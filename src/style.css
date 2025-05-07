@@ -2180,3 +2180,13 @@ section, .about-section, .project-section, .resume-section, .contact-section {
   border: none !important;
   box-shadow: none !important;
 }
+
+@media (max-width: 600px) {
+  .back-to-top-btn {
+    width: 38px !important;
+    height: 38px !important;
+    bottom: 1.2rem !important;
+    right: 1.2rem !important;
+    font-size: 1.3rem !important;
+  }
+}

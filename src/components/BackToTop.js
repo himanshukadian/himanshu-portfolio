@@ -17,6 +17,7 @@ const BackToTop = () => {
 
   return (
     <button
+      className="back-to-top-btn"
       onClick={scrollToTop}
       style={{
         position: "fixed",
