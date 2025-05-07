@@ -22,7 +22,7 @@ function About() {
             </h1>
             <div className="about-card">
               <p className="about-body">
-                Hi! I'm <span className="purple">Himanshu Chaudhary</span> from <span className="purple">New York, USA</span>. 
+                Hi! I'm <span className="purple">Himanshu Chaudhary</span> from <span className="purple">Bengaluru, India</span>. 
                 I'm a Software Engineer II specializing in building intelligent solutions.
               </p>
               <p className="about-body" style={{ fontWeight: 600, color: 'var(--secondary-color)', fontSize: '1.15em', marginBottom: '1.2rem' }}>
