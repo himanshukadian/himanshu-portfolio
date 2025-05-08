@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Container } from "react-bootstrap";
 import Typewriter from "typewriter-effect";
 import Button from "react-bootstrap/Button";
@@ -10,8 +10,23 @@ import Projects from "../Projects/Projects";
 import Resume from "../Resume/ResumeNew";
 import Contact from "../Contact/Contact";
 import { motion } from "framer-motion";
+import { scroller } from "react-scroll";
 
 function Home() {
+  useEffect(() => {
+    if (window.location.hash) {
+      const section = window.location.hash.replace('#', '');
+      setTimeout(() => {
+        scroller.scrollTo(section, {
+          duration: 700,
+          delay: 0,
+          smooth: 'easeInOutQuart',
+          offset: -70,
+        });
+      }, 100); // Wait for page to render
+    }
+  }, []);
+
   return (
     <>
       <div className="split-hero" id="home">

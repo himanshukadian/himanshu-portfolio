@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Container, Nav, Navbar } from "react-bootstrap";
-import { Link } from "react-scroll";
+import { Link as RouterLink, useLocation } from "react-router-dom";
+import { Link as ScrollLink } from "react-scroll";
 import { useTheme } from "../context/ThemeContext";
 import { FaSun, FaMoon } from "react-icons/fa";
 import { CgGitFork } from "react-icons/cg";
@@ -11,6 +12,10 @@ import Button from "react-bootstrap/Button";
 function NavBar() {
   const [expand, setExpand] = useState(false);
   const { isDark, toggleTheme } = useTheme();
+  const location = useLocation();
+
+  // Helper to determine if we're on home page
+  const isHome = location.pathname === "/";
 
   const navVariants = {
     hidden: { y: -50, opacity: 0 },
@@ -44,7 +49,7 @@ function NavBar() {
         }}
       >
         <Container>
-          <Navbar.Brand as={Link} to="home" className="d-flex align-items-center" style={{ fontWeight: 800, fontSize: 26, letterSpacing: 1.5, color: 'var(--primary-color)' }}>
+          <Navbar.Brand as={RouterLink} to="/" className="d-flex align-items-center" style={{ fontWeight: 800, fontSize: 26, letterSpacing: 1.5, color: 'var(--primary-color)' }}>
             HC
           </Navbar.Brand>
           <motion.button
@@ -85,29 +90,58 @@ function NavBar() {
           <Navbar.Collapse id="responsive-navbar-nav">
             <Nav className="ms-auto align-items-center" defaultActiveKey="#home">
               <Nav.Item>
-                <Nav.Link as={Link} to="home" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                <Nav.Link as={RouterLink} to="/" className="modern-nav-link">
                   Home
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link as={Link} to="about" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                {isHome ? (
+                  <Nav.Link as={ScrollLink} to="about" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                    About
+                  </Nav.Link>
+                ) : (
+                  <Nav.Link as={RouterLink} to="/#about" className="modern-nav-link">
                   About
                 </Nav.Link>
+                )}
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link as={Link} to="projects" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                {isHome ? (
+                  <Nav.Link as={ScrollLink} to="projects" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                    Projects
+                  </Nav.Link>
+                ) : (
+                  <Nav.Link as={RouterLink} to="/#projects" className="modern-nav-link">
                   Projects
                 </Nav.Link>
+                )}
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link as={Link} to="resume" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                {isHome ? (
+                  <Nav.Link as={ScrollLink} to="resume" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                    Resume
+                  </Nav.Link>
+                ) : (
+                  <Nav.Link as={RouterLink} to="/#resume" className="modern-nav-link">
                   Resume
                 </Nav.Link>
+                )}
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link as={Link} to="contact" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                <Nav.Link href="https://blog.buildwithhimanshu.com" className="modern-nav-link">
+                  Blog
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                {isHome ? (
+                  <Nav.Link as={ScrollLink} to="contact" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
+                    Contact
+                  </Nav.Link>
+                ) : (
+                  <Nav.Link as={RouterLink} to="/#contact" className="modern-nav-link">
                   Contact
                 </Nav.Link>
+                )}
               </Nav.Item>
               <Nav.Item className="fork-btn ms-3">
                 <Button

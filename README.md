@@ -139,6 +139,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **GitHub**: [Your GitHub]
 - **Portfolio**: [Your Portfolio URL]
 
+## Hosting Blog and Portfolio on Separate Subdomains
+
+### 1. Split the Codebase
+- Create a new directory `blog-app` at the project root.
+- Copy all blog-related components (`src/components/Blog`, shared components like `Navbar`, `Footer`, `Loader`, `SEO`, and the markdown files) into `blog-app/src`.
+- Copy `public/index.html` to `blog-app/public/index.html`.
+- Create a new `blog-app/src/App.js` and `blog-app/src/index.js` that only import and render the blog pages.
+- Update navigation in both apps:
+  - Portfolio: Navbar "Blog" link → `https://blog.buildwithhimanshu.com`
+  - Blog: Navbar "Portfolio" or "Home" link → `https://portfolio.buildwithhimanshu.com`
+
+### 2. Deploy Each App
+- Deploy the main portfolio app to `portfolio.buildwithhimanshu.com` (e.g., Netlify, Vercel, or your host).
+- Deploy the blog app to `blog.buildwithhimanshu.com`.
+
+### 3. DNS Setup
+- In your DNS provider, add CNAME or A records:
+  - `portfolio.buildwithhimanshu.com` → your portfolio app host
+  - `blog.buildwithhimanshu.com` → your blog app host
+
+### 4. (Optional) Shared Styles/Assets
+- If you want to share styles or assets, consider symlinking or copying `src/style.css` and `public` assets to both apps.
+
+---
+
+**After splitting, each app is fully independent and can be updated/deployed separately.**
+
 ---
 
 Made with ❤️ by Himanshu Chaudhary 

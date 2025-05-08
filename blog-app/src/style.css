@@ -814,7 +814,7 @@ section .project-card-view:hover, section .resume-content-item:hover {
 /* --------- */
 .resume-section {
   position: relative !important;
-  padding-top: 110px !important;
+  padding-top: 90px !important;
   padding-bottom: 30px !important;
   background: var(--section-background-color);
   padding: 5rem 0;
