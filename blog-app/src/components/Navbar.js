@@ -46,7 +46,7 @@ function NavBar() {
       >
         <Container>
           <Navbar.Brand as={RouterLink} to="/" className="d-flex align-items-center" style={{ fontWeight: 800, fontSize: 26, letterSpacing: 1.5, color: 'var(--primary-color)' }}>
-            HC Writes
+            The Digital Pen
           </Navbar.Brand>
           <div className="d-flex align-items-center ms-auto">
           <motion.button
@@ -94,24 +94,26 @@ function NavBar() {
                     borderBottom: 'none',
                     padding: '0.5rem 1rem',
                   }}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  About Me
+                  About
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
                 <Nav.Link
                   as={RouterLink}
-                  to="/"
-                  className={`modern-nav-link${location.pathname === '/' ? ' active' : ''}`}
+                  to="/articles"
+                  className={`modern-nav-link${location.pathname === '/articles' ? ' active' : ''}`}
                   style={{
-                    color: location.pathname === '/' ? 'var(--primary-color)' : 'var(--text-primary)',
+                    color: location.pathname === '/articles' ? 'var(--primary-color)' : 'var(--text-primary)',
                     fontWeight: 700,
                     fontSize: 18,
-                    borderBottom: location.pathname === '/' ? '2.5px solid var(--primary-color)' : 'none',
+                    borderBottom: location.pathname === '/articles' ? '2.5px solid var(--primary-color)' : 'none',
                     padding: '0.5rem 1rem',
                   }}
                 >
-                  Blog
+                  Articles
                 </Nav.Link>
               </Nav.Item>
             </Nav>

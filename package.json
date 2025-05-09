@@ -27,6 +27,7 @@
     "react-scripts": "5.0.1",
     "react-scroll": "^1.9.3",
     "react-tsparticles": "^1.42.2",
+    "rss-parser": "^3.13.0",
     "sharp": "^0.32.6",
     "typewriter-effect": "^2.18.2",
     "web-vitals": "^2.1.4"

@@ -1,3 +1,9 @@
+html, body, #root {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+}
+
 html {
   --ai-bg-gradient: linear-gradient(135deg, #232946 0%, #1a1a40 100%);
   --ai-card-bg: rgba(44, 62, 80, 0.7);
