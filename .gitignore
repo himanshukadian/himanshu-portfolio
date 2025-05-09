@@ -48,3 +48,14 @@ Server/config.js
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Build output
+dist/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
