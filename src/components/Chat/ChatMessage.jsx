@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const ChatMessage = ({ message, colors }) => {
+const ChatMessage = ({ message, colors, instantMode = false }) => {
   const [displayedText, setDisplayedText] = useState('')
   const [isTyping, setIsTyping] = useState(true)
   const messageRef = useRef(null)
@@ -19,6 +19,13 @@ const ChatMessage = ({ message, colors }) => {
   // Realistic typing animation for assistant messages
   useEffect(() => {
     if (message.type === 'assistant') {
+      // If instant mode is enabled, show text immediately
+      if (instantMode) {
+        setDisplayedText(message.content)
+        setIsTyping(false)
+        return
+      }
+      
       setDisplayedText('')
       setIsTyping(true)
       
@@ -27,20 +34,23 @@ const ChatMessage = ({ message, colors }) => {
       
       const typingInterval = setInterval(() => {
         if (currentIndex < text.length) {
-          setDisplayedText(text.slice(0, currentIndex + 1))
-          currentIndex++
+          // Display 2-3 characters at once for faster rendering on long text
+          const charsToAdd = text.length > 200 ? 3 : text.length > 100 ? 2 : 1
+          const nextIndex = Math.min(currentIndex + charsToAdd, text.length)
+          setDisplayedText(text.slice(0, nextIndex))
+          currentIndex = nextIndex
         } else {
           setIsTyping(false)
           clearInterval(typingInterval)
         }
-      }, 15) // Faster typing speed
+      }, 5) // Much faster typing speed
 
       return () => clearInterval(typingInterval)
     } else {
       setDisplayedText(message.content)
       setIsTyping(false)
     }
-  }, [message.content, message.type])
+  }, [message.content, message.type, instantMode])
 
   // Format text with line breaks and basic markdown
   const formatText = (text) => {

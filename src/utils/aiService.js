@@ -2,130 +2,30 @@ import { resumeData } from '../data/resume.js'
 
 class AIService {
   constructor() {
-    this.model = null
-    this.isModelLoaded = false
-    this.modelType = 'rules' // Start with rules immediately
-    this.isLoading = false
+    this.backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://api.buildwithhimanshu.com'
+    this.apiEndpoint = `${this.backendUrl}/api/ai/chat`
+    this.healthEndpoint = `${this.backendUrl}/api/ai/health`
+    this.isModelLoaded = true // Assume backend is available
+    this.modelType = 'backend-ai'
     this.fallbackToRules = false
+    this.isLoading = false
     
-    // Start with rule-based system, load AI in background
-    console.log('✅ AI Assistant ready (enhanced rule-based mode)')
-    console.log('🚀 Loading optimized WebLLM AI model in background...')
+    // Check backend health on initialization
+    this.checkBackendHealth()
     
-    // Load AI models in background without blocking
-    this.initializeModelInBackground()
+    console.log('✅ AI Assistant ready with backend API')
+    console.log(`🚀 Backend URL: ${this.backendUrl}`)
   }
 
-  async initializeModelInBackground() {
-    // Don't block user experience - load AI model in background
-    setTimeout(async () => {
-      try {
-        console.log('🤖 Loading WebLLM AI model in background...')
-        await this.loadWebLLM()
-        console.log('✨ Upgraded to AI-powered responses!')
-        
-      } catch (webllmError) {
-        console.log('AI model not available, continuing with enhanced rule-based responses...', webllmError)
-      }
-    }, 1000) // Small delay to ensure UI is ready
-  }
-
-  async loadWebLLM() {
-    // Dynamic import for WebLLM
-    const { CreateMLCEngine } = await import('@mlc-ai/web-llm')
+  async generateResponse(userQuery, chatHistory = []) {
+    console.log('🧠 Generating response with context...')
     
-    console.log('Loading Qwen2.5-0.5B with WebLLM...')
-    
-    // Use the working WebLLM model
-    this.model = await CreateMLCEngine('Qwen2.5-0.5B-Instruct-q4f16_1-MLC', {
-      initProgressCallback: (progress) => {
-        console.log(`AI Model loading: ${Math.round(progress.progress * 100)}%`)
-      }
-    })
-    
-    this.isModelLoaded = true
-    this.modelType = 'webllm'
-    console.log('✅ WebLLM AI model loaded successfully')
-  }
-
-  createPrompt(userQuery) {
-    // Provide targeted context based on the query to avoid confusion
-    const context = this.getTargetedContext(userQuery)
-    
-    return `You are Himanshu Chaudhary. Answer this question using ONLY the specific information provided below. Do NOT mix information between different companies or sections.
-
-IMPORTANT: Each company section below is SEPARATE. Do NOT combine or mix information between companies.
-
-${context}
-
-QUESTION: ${userQuery}
-
-ANSWER (using only the information above, do not mix between companies):`
-  }
-
-  getTargetedContext(query) {
-    const lowerQuery = query.toLowerCase()
-    let context = `PERSONAL INFO:\nName: ${resumeData.name}\nCurrent Title: ${resumeData.title}\nLocation: ${resumeData.location}\n\n`
-    
-    // Check for specific company mentions and provide ONLY that company's info
-    if (lowerQuery.includes('mobeology') || lowerQuery.includes('mobelogy')) {
-      const mobeologyExp = resumeData.experience.find(exp => exp.company === 'Mobeology Communications')
-      context += `MOBEOLOGY COMMUNICATIONS WORK (ONLY):\nRole: ${mobeologyExp.role}\nDuration: ${mobeologyExp.duration}\nLocation: ${mobeologyExp.location}\nWhat I did at Mobeology Communications:\n${mobeologyExp.highlights.map(h => `• ${h}`).join('\n')}\n\n`
-      return context
-    }
-    
-    if (lowerQuery.includes('wayfair')) {
-      const wayfairExp = resumeData.experience.find(exp => exp.company === 'Wayfair')
-      context += `WAYFAIR WORK (ONLY):\nRole: ${wayfairExp.role}\nDuration: ${wayfairExp.duration}\nLocation: ${wayfairExp.location}\nWhat I did at Wayfair:\n${wayfairExp.highlights.map(h => `• ${h}`).join('\n')}\n\n`
-      return context
-    }
-    
-    if (lowerQuery.includes('amazon')) {
-      const amazonExp = resumeData.experience.find(exp => exp.company === 'Amazon')
-      context += `AMAZON WORK (ONLY):\nRole: ${amazonExp.role}\nDuration: ${amazonExp.duration}\nLocation: ${amazonExp.location}\nWhat I did at Amazon:\n${amazonExp.highlights.map(h => `• ${h}`).join('\n')}\n\n`
-      return context
-    }
-    
-    // For general queries, provide complete but clearly separated context
-    context += `WORK EXPERIENCE (DO NOT MIX BETWEEN COMPANIES):\n\n`
-    resumeData.experience.forEach(exp => {
-      context += `=== ${exp.company.toUpperCase()} (SEPARATE COMPANY) ===\nRole: ${exp.role}\nDuration: ${exp.duration}\nLocation: ${exp.location}\nWork done SPECIFICALLY at ${exp.company}:\n${exp.highlights.map(h => `• ${h}`).join('\n')}\n\n`
-    })
-    
-    // Add other sections as needed
-    if (lowerQuery.includes('skill') || lowerQuery.includes('tech')) {
-      context += `TECHNICAL SKILLS:\nLanguages: ${resumeData.skills.languages.join(', ')}\nTechnologies: ${resumeData.skills.technologies.join(', ')}\n\n`
-    }
-    
-    if (lowerQuery.includes('education')) {
-      context += `EDUCATION:\n${resumeData.education.map(edu => `${edu.degree} from ${edu.institution} (${edu.year})`).join('\n')}\n\n`
-    }
-    
-    if (lowerQuery.includes('project') && !lowerQuery.includes('amazon') && !lowerQuery.includes('wayfair') && !lowerQuery.includes('mobeology')) {
-      context += `PERSONAL PROJECTS:\n${resumeData.projects.map(proj => `${proj.name}: ${proj.description}\nTechnologies: ${proj.technologies.join(', ')}`).join('\n\n')}\n\n`
-    }
-    
-    return context
-  }
-
-  extractRelevantContext(query) {
-    // This method is now replaced by getTargetedContext
-    return this.getTargetedContext(query)
-  }
-
-  async generateResponse(userQuery) {
     try {
-      console.log(`🔍 Query: "${userQuery}"`)
-      console.log(`🤖 AI Model Status: loaded=${this.isModelLoaded}, type=${this.modelType}`)
-      
-      // Use AI model if available, with better context filtering
-      if (this.isModelLoaded && !this.fallbackToRules) {
-        console.log('📡 Using AI model response (with improved context)')
-        return await this.generateAIResponse(userQuery)
+      if (!this.fallbackToRules && this.isModelLoaded) {
+        return await this.generateAPIResponse(userQuery, chatHistory)
+      } else {
+        return this.generateRuleBasedResponse(userQuery)
       }
-      
-      console.log('📋 Using rule-based response')
-      return this.generateRuleBasedResponse(userQuery)
       
     } catch (error) {
       console.error('Response generation failed:', error)
@@ -133,29 +33,40 @@ ANSWER (using only the information above, do not mix between companies):`
     }
   }
 
-  async generateAIResponse(userQuery) {
-    const prompt = this.createPrompt(userQuery)
-    console.log('🔥 AI Prompt length:', prompt.length)
-    console.log('📝 Context preview:', prompt.substring(0, 200) + '...')
+  async generateAPIResponse(userQuery, chatHistory = []) {
+    console.log('🔥 Sending request to backend AI API...')
     
     try {
-      // Use WebLLM for AI responses with targeted context
-      const response = await this.model.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3, // Slightly higher for more natural responses
-        max_tokens: 200,
-        top_p: 0.9,
-        frequency_penalty: 0,
-        presence_penalty: 0
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: userQuery,
+          chatHistory: chatHistory
+        })
       })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
+        throw new Error(`Backend API request failed: ${response.status} - ${errorData.message}`)
+      }
+
+      const data = await response.json()
+      const aiResponse = data.data?.response
       
-      const aiResponse = response.choices[0]?.message?.content
-      console.log('🤖 AI Response:', aiResponse?.substring(0, 100) + '...')
+      if (!aiResponse) {
+        throw new Error('No response received from backend')
+      }
       
-      return aiResponse || this.generateRuleBasedResponse(userQuery)
+      console.log('🤖 Backend AI Response:', aiResponse.substring(0, 100) + '...')
+      
+      return aiResponse
       
     } catch (error) {
-      console.error('AI response generation failed:', error)
+      console.error('Backend AI response generation failed:', error)
+      console.log('🔄 Falling back to rule-based response')
       return this.generateRuleBasedResponse(userQuery)
     }
   }
@@ -270,13 +181,31 @@ ANSWER (using only the information above, do not mix between companies):`
     return `Hi! I'm ${resumeData.name}, a ${resumeData.title} 👋\n\nI can tell you about:\n• **Work experience** (Wayfair, Amazon, Mobeology Communications)\n• **Technical skills** (${resumeData.skills.languages.slice(0,3).join(', ')}, etc.)\n• **All my projects** (work + personal)\n• **Education** (NIT Warangal, University of Delhi)\n• **Contact information**\n\nWhat specifically would you like to know? Try asking about any of these topics!`
   }
 
+  async checkBackendHealth() {
+    try {
+      const response = await fetch(this.healthEndpoint, { method: 'GET' });
+      if (response.ok) {
+        console.log('✅ Backend API is healthy.');
+      } else {
+        console.warn('⚠️ Backend API is not responding or unhealthy. Falling back to rule-based responses.');
+        this.isModelLoaded = false;
+        this.fallbackToRules = true;
+      }
+    } catch (error) {
+      console.error('Error checking backend health:', error);
+      console.warn('⚠️ Backend API is not responding or unhealthy. Falling back to rule-based responses.');
+      this.isModelLoaded = false;
+      this.fallbackToRules = true;
+    }
+  }
+
   getModelStatus() {
     return {
-      isLoading: false, // Never loading from user perspective - starts with rules
+      isLoading: false,
       isModelLoaded: this.isModelLoaded,
       modelType: this.modelType,
       fallbackToRules: this.fallbackToRules,
-      isReady: true // Always ready with rule-based responses
+      isReady: true
     }
   }
 
@@ -285,11 +214,14 @@ ANSWER (using only the information above, do not mix between companies):`
     this.modelType = 'rules'
   }
 
-  setWebLLMMode() {
-    if (this.isModelLoaded) {
-      this.fallbackToRules = false
-      this.modelType = 'webllm'
-    }
+  setLocalAPIMode() {
+    this.fallbackToRules = false
+    this.modelType = 'mistral-api'
+  }
+
+  setMistralAPIMode() {
+    this.fallbackToRules = false
+    this.modelType = 'mistral-api'
   }
 }
 

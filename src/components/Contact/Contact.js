@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Form, Button, Alert } from "react-bootstrap";
 import { FaCheckCircle } from "react-icons/fa";
-import emailjs from '@emailjs/browser';
 
 function Contact() {
   const form = useRef();
@@ -34,16 +33,25 @@ function Contact() {
     }
 
     try {
-      await emailjs.sendForm(
-        process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-        form.current,
-        process.env.REACT_APP_EMAILJS_USER_ID
-      );
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/contact/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to send message');
+      }
+
       setSubmitted(true);
       setFormData({ name: "", email: "", message: "" });
     } catch (err) {
-      setError("Failed to send message. Please try again later.");
+      setError(err.message || "Failed to send message. Please try again later.");
     } finally {
       setLoading(false);
     }

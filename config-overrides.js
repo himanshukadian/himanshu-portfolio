@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = function override(config, env) {
-  // AI Libraries Configuration
+  // Basic polyfills for Node.js modules in browser
   config.resolve.fallback = {
     ...config.resolve.fallback,
     "path": require.resolve("path-browserify"),
@@ -22,54 +22,6 @@ module.exports = function override(config, env) {
       Buffer: ['buffer', 'Buffer'],
     }),
   ];
-
-  // Handle WASM files for transformers.js
-  config.module.rules.push({
-    test: /\.wasm$/,
-    type: 'asset/resource',
-  });
-
-  // Handle .bin files for models
-  config.module.rules.push({
-    test: /\.bin$/,
-    type: 'asset/resource',
-  });
-
-  // Configure headers for SharedArrayBuffer (needed for WebLLM)
-  if (env === 'development') {
-    config.devServer = {
-      ...config.devServer,
-      headers: {
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-        'Cross-Origin-Opener-Policy': 'same-origin',
-      },
-    };
-  }
-
-  // Optimize chunks for AI libraries
-  config.optimization = {
-    ...config.optimization,
-    splitChunks: {
-      chunks: 'all',
-      cacheGroups: {
-        ...(config.optimization.splitChunks?.cacheGroups || {}),
-        ai: {
-          test: /[\\/]node_modules[\\/](@xenova|@mlc-ai)[\\/]/,
-          name: 'ai-libs',
-          chunks: 'all',
-          priority: 20,
-        },
-      },
-    },
-  };
-
-  // Configure experiments for WASM and async WebAssembly
-  config.experiments = {
-    ...config.experiments,
-    asyncWebAssembly: true,
-    syncWebAssembly: true,
-    topLevelAwait: true,
-  };
 
   return config;
 }; 

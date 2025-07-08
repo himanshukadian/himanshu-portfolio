@@ -14,6 +14,7 @@ const ChatWidget = () => {
   const [userHasClosed, setUserHasClosed] = useState(false)
   const [error, setError] = useState(null)
   const [modelStatus, setModelStatus] = useState(aiService.getModelStatus())
+  const [instantMode, setInstantMode] = useState(true) // Always use instant mode
   const messagesEndRef = useRef(null)
   const autoOpenTimerRef = useRef(null)
   const responseTimerRef = useRef(null)
@@ -85,8 +86,35 @@ const ChatWidget = () => {
   const SESSION_KEYS = {
     AUTO_OPENED: 'chatWidget_autoOpened',
     LAST_SESSION: 'chatWidget_lastSession',
-    USER_CLOSED: 'chatWidget_userClosed' // Track if user closed in current session
+    USER_CLOSED: 'chatWidget_userClosed', // Track if user closed in current session
+    CHAT_HISTORY: 'chatWidget_chatHistory' // Store chat messages
   }
+
+  // Load chat history from sessionStorage on component mount
+  useEffect(() => {
+    try {
+      const savedHistory = sessionStorage.getItem(SESSION_KEYS.CHAT_HISTORY)
+      if (savedHistory) {
+        const parsedHistory = JSON.parse(savedHistory)
+        setMessages(parsedHistory)
+        console.log('💾 Loaded chat history:', parsedHistory.length, 'messages')
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error)
+    }
+  }, [])
+
+  // Save chat history to sessionStorage whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        sessionStorage.setItem(SESSION_KEYS.CHAT_HISTORY, JSON.stringify(messages))
+        console.log('💾 Saved chat history:', messages.length, 'messages')
+      } catch (error) {
+        console.error('Error saving chat history:', error)
+      }
+    }
+  }, [messages])
 
   // Smooth scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -110,10 +138,18 @@ const ChatWidget = () => {
         localStorage.removeItem(SESSION_KEYS.AUTO_OPENED)
         localStorage.removeItem(SESSION_KEYS.LAST_SESSION)
         localStorage.removeItem(SESSION_KEYS.USER_CLOSED)
+        sessionStorage.removeItem(SESSION_KEYS.CHAT_HISTORY)
         setHasAutoOpened(false)
         setUserHasClosed(false)
         setIsOpen(false)
-        console.log('Chat widget reset! Refresh the page to test auto-open.')
+        setMessages([])
+        console.log('Chat widget reset! Chat history cleared. Refresh the page to test auto-open.')
+      }
+
+      window.clearChatHistory = () => {
+        sessionStorage.removeItem(SESSION_KEYS.CHAT_HISTORY)
+        setMessages([])
+        console.log('Chat history cleared!')
       }
     }
     
@@ -235,7 +271,9 @@ const ChatWidget = () => {
 
       // Use AI service for response generation
       try {
-        const response = await aiService.generateResponse(messageText)
+        // Get current messages for context (excluding the user message we just added)
+        const currentMessages = [...messages, userMessage]
+        const response = await aiService.generateResponse(messageText, currentMessages)
         const assistantMessage = {
           id: Date.now() + 1,
           type: 'assistant',
@@ -484,7 +522,7 @@ const ChatWidget = () => {
               textShadow: '0 1px 2px rgba(0,0,0,0.2)'
             }}>
               {modelStatus.isModelLoaded && !modelStatus.fallbackToRules
-                ? `✨ AI-Powered (${modelStatus.modelType})`
+                ? `✨ AI-Powered`
                 : 'Himanshu\'s Assistant'
               }
             </p>
@@ -518,7 +556,7 @@ const ChatWidget = () => {
           </button>
           <button
             onClick={() => {
-              aiService.setWebLLMMode();
+              aiService.setMistralAPIMode();
               setModelStatus({ ...aiService.getModelStatus() });
             }}
             style={{
@@ -535,11 +573,12 @@ const ChatWidget = () => {
               opacity: modelStatus.isModelLoaded ? 1 : 0.5
             }}
             disabled={!modelStatus.isModelLoaded || !modelStatus.fallbackToRules}
-            title={modelStatus.isModelLoaded ? "Use AI-powered responses" : "AI model not loaded yet"}
+            title={modelStatus.isModelLoaded ? "Use AI responses" : "AI not available (missing API key)"}
           >
-            WebLLM
+            AI
           </button>
         </div>
+        
         <button
           onClick={handleClose}
           style={{
@@ -789,7 +828,7 @@ const ChatWidget = () => {
             minHeight: 0
           }} className="chat-scroll">
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} colors={colors} />
+              <ChatMessage key={message.id} message={message} colors={colors} instantMode={instantMode} />
             ))}
             {isLoading && (
               <div style={{
