@@ -2657,3 +2657,237 @@ section, .about-section, .project-section, .resume-section, .contact-section {
     font-size: 22px !important;
   }
 }
+
+/* Chat Widget Styles */
+.chat-widget {
+  font-family: 'Inter', 'Poppins', Arial, sans-serif;
+}
+
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 3px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
+
+@keyframes chatPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.chat-loading-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #64748b;
+  animation: chatLoadingPulse 1.4s ease-in-out infinite both;
+}
+
+.chat-loading-dot:nth-child(1) { animation-delay: -0.32s; }
+.chat-loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes chatLoadingPulse {
+  0%, 80%, 100% { 
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Scheduling Widget Styles */
+.scheduling-modal .modal-dialog {
+  max-width: 600px;
+}
+
+.scheduling-modal .modal-content {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  font-family: 'Inter', 'Poppins', Arial, sans-serif;
+}
+
+.scheduling-modal .modal-header {
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(135deg, #00e6fe, #2563ff);
+  color: white;
+  padding: 20px 24px;
+}
+
+.scheduling-modal .modal-title {
+  font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scheduling-modal .modal-body {
+  padding: 24px;
+  background: #f8fafc;
+}
+
+.scheduling-modal .card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.scheduling-modal .card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.scheduling-modal .slot-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.scheduling-modal .slot-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-color: #2563ff !important;
+}
+
+.scheduling-modal .btn {
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 10px 20px;
+  transition: all 0.2s ease;
+}
+
+.scheduling-modal .btn-primary {
+  background: linear-gradient(135deg, #2563ff, #1d4ed8);
+  border: none;
+  box-shadow: 0 2px 8px rgba(37, 99, 255, 0.3);
+}
+
+.scheduling-modal .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 255, 0.4);
+}
+
+.scheduling-modal .btn-outline-secondary {
+  border-color: #64748b;
+  color: #64748b;
+}
+
+.scheduling-modal .btn-outline-secondary:hover {
+  background-color: #64748b;
+  border-color: #64748b;
+  transform: translateY(-1px);
+}
+
+.scheduling-modal .form-control {
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 12px 16px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.scheduling-modal .form-control:focus {
+  border-color: #2563ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 255, 0.1);
+}
+
+.scheduling-modal .form-label {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.scheduling-modal .badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.scheduling-modal .alert {
+  border-radius: 10px;
+  border: none;
+  padding: 16px;
+  font-weight: 500;
+}
+
+.scheduling-modal .alert-info {
+  background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
+  color: #0277bd;
+}
+
+.scheduling-modal .alert-danger {
+  background: linear-gradient(135deg, #ffebee, #ffcdd2);
+  color: #c62828;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+  .scheduling-modal .modal-dialog {
+    margin: 10px;
+    max-width: calc(100% - 20px);
+  }
+  
+  .scheduling-modal .modal-body {
+    padding: 16px;
+  }
+  
+  .scheduling-modal .row .col-md-6 {
+    margin-bottom: 12px;
+  }
+}
+
+/* Animation for slot cards */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scheduling-modal .slot-card {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.scheduling-modal .slot-card:nth-child(even) {
+  animation-delay: 0.1s;
+}
+
+/* Success animation */
+@keyframes successBounce {
+  0%, 20%, 60%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  80% {
+    transform: translateY(-5px);
+  }
+}
+
+.scheduling-modal .text-success svg {
+  animation: successBounce 1s ease-in-out;
+}

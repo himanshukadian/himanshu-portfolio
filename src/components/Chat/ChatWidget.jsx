@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ChatMessage from './ChatMessage'
 import MessageInput from './MessageInput'
+import SchedulingWidget from './SchedulingWidget'
 import { aiService } from '../../utils/aiService'
 
 const ChatWidget = () => {
@@ -14,7 +15,9 @@ const ChatWidget = () => {
   const [userHasClosed, setUserHasClosed] = useState(false)
   const [error, setError] = useState(null)
   const [modelStatus, setModelStatus] = useState(aiService.getModelStatus())
-  const [instantMode, setInstantMode] = useState(true) // Always use instant mode
+  const [instantMode] = useState(true) // Always use instant mode
+  const [showScheduling, setShowScheduling] = useState(false)
+  const [meetingSuggestion, setMeetingSuggestion] = useState(null)
   const messagesEndRef = useRef(null)
   const autoOpenTimerRef = useRef(null)
   const responseTimerRef = useRef(null)
@@ -274,6 +277,17 @@ const ChatWidget = () => {
         // Get current messages for context (excluding the user message we just added)
         const currentMessages = [...messages, userMessage]
         const response = await aiService.generateResponse(messageText, currentMessages)
+        
+        // Check if there's a meeting suggestion
+        const suggestion = aiService.getLastMeetingSuggestion()
+        if (suggestion && suggestion.shouldSuggest) {
+          setMeetingSuggestion(suggestion)
+          // Show scheduling widget after a short delay
+          setTimeout(() => {
+            setShowScheduling(true)
+          }, 1000)
+        }
+        
         const assistantMessage = {
           id: Date.now() + 1,
           type: 'assistant',
@@ -875,6 +889,33 @@ const ChatWidget = () => {
           <MessageInput onSendMessage={handleSendMessage} disabled={isLoading} colors={colors} />
         </div>
       </div>
+      
+      {/* Scheduling Widget */}
+      <SchedulingWidget
+        aiService={aiService}
+        show={showScheduling}
+        onHide={() => setShowScheduling(false)}
+        meetingSuggestion={meetingSuggestion}
+        onMeetingScheduled={(meetingData) => {
+          console.log('Meeting scheduled:', meetingData)
+          // Add a success message to chat
+          const successMessage = {
+            id: Date.now(),
+            type: 'assistant',
+            content: `🎉 Great! Your ${meetingData.meetingType.replace('_', ' ')} is scheduled for ${new Date(meetingData.scheduledTime).toLocaleDateString('en-IN', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}. You'll receive a confirmation email shortly!`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, successMessage])
+          setShowScheduling(false)
+          setMeetingSuggestion(null)
+        }}
+      />
     </div>
   )
 }

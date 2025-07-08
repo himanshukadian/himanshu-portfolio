@@ -2,7 +2,7 @@ import { resumeData } from '../data/resume.js'
 
 class AIService {
   constructor() {
-    this.backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://api.buildwithhimanshu.com'
+    this.backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5001'
     this.apiEndpoint = `${this.backendUrl}/api/ai/chat`
     this.healthEndpoint = `${this.backendUrl}/api/ai/health`
     this.isModelLoaded = true // Assume backend is available
@@ -17,19 +17,44 @@ class AIService {
     console.log(`🚀 Backend URL: ${this.backendUrl}`)
   }
 
+  // Generate AI response with scheduling suggestions
   async generateResponse(userQuery, chatHistory = []) {
-    console.log('🧠 Generating response with context...')
-    
     try {
-      if (!this.fallbackToRules && this.isModelLoaded) {
-        return await this.generateAPIResponse(userQuery, chatHistory)
-      } else {
-        return this.generateRuleBasedResponse(userQuery)
-      }
+      this.isLoading = true
       
+      let response
+      
+      // First get the AI response
+      if (this.isModelLoaded && !this.fallbackToRules) {
+        response = await this.generateAPIResponse(userQuery, chatHistory)
+      } else {
+        response = this.generateRuleBasedResponse(userQuery)
+      }
+
+      // Check if we should suggest a meeting
+      const shouldCheckMeeting = this.shouldSuggestMeeting(userQuery, chatHistory, response)
+      
+      if (shouldCheckMeeting) {
+        try {
+          const meetingSuggestion = await this.checkMeetingSuggestion(userQuery, chatHistory)
+          if (meetingSuggestion && meetingSuggestion.shouldSuggest) {
+            response += `\n\n📅 ${meetingSuggestion.autoMessage}`
+            
+            // Store meeting suggestion for frontend to display
+            this.lastMeetingSuggestion = meetingSuggestion
+          }
+        } catch (error) {
+          console.error('Meeting suggestion failed:', error)
+          // Don't fail the main response if meeting suggestion fails
+        }
+      }
+
+      return response
     } catch (error) {
-      console.error('Response generation failed:', error)
+      console.error('AI response generation failed:', error)
       return this.generateRuleBasedResponse(userQuery)
+    } finally {
+      this.isLoading = false
     }
   }
 
@@ -179,6 +204,112 @@ class AIService {
     // 13. CATCH-ALL FOR UNMATCHED QUERIES
     console.log(`⚠️ No specific pattern matched for: "${query}"`)
     return `Hi! I'm ${resumeData.name}, a ${resumeData.title} 👋\n\nI can tell you about:\n• **Work experience** (Wayfair, Amazon, Mobeology Communications)\n• **Technical skills** (${resumeData.skills.languages.slice(0,3).join(', ')}, etc.)\n• **All my projects** (work + personal)\n• **Education** (NIT Warangal, University of Delhi)\n• **Contact information**\n\nWhat specifically would you like to know? Try asking about any of these topics!`
+  }
+
+  // Check if conversation context suggests scheduling a meeting
+  shouldSuggestMeeting(userQuery, chatHistory, aiResponse) {
+    console.log('🔍 Checking meeting suggestion for query:', userQuery)
+    
+    // Don't suggest if we already suggested recently
+    if (this.lastMeetingSuggestion && 
+        Date.now() - this.lastMeetingSuggestion.timestamp < 300000) { // 5 minutes
+      console.log('❌ Not suggesting - recently suggested')
+      return false
+    }
+    
+    // Let the LLM decide by always checking if conversation warrants a meeting
+    // The backend AI will analyze context and determine if meeting is appropriate
+    console.log('✅ Checking with LLM for meeting suggestion')
+    return true
+  }
+
+  // Call the scheduling agent to get meeting suggestion
+  async checkMeetingSuggestion(userQuery, chatHistory) {
+    try {
+      const response = await fetch(`${this.backendUrl}/api/scheduling/suggest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          currentMessage: userQuery,
+          conversationHistory: chatHistory,
+          userContext: {
+            timestamp: Date.now(),
+            source: 'portfolio_chat'
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Scheduling API failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      if (data.status === 'success' && data.data.shouldSuggest) {
+        data.data.timestamp = Date.now()
+        return data.data
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Meeting suggestion API failed:', error)
+      return null
+    }
+  }
+
+  // Get available time slots
+  async getAvailableSlots(meetingType = 'general') {
+    try {
+      const response = await fetch(`${this.backendUrl}/api/scheduling/slots?meetingType=${meetingType}`, {
+        method: 'GET'
+      })
+
+      if (!response.ok) {
+        throw new Error(`Slots API failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data.data
+    } catch (error) {
+      console.error('Get slots API failed:', error)
+      return null
+    }
+  }
+
+  // Schedule a meeting
+  async scheduleMeeting(meetingData) {
+    try {
+      const response = await fetch(`${this.backendUrl}/api/scheduling/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(meetingData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
+        throw new Error(`Schedule API failed: ${response.status} - ${errorData.message}`)
+      }
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Schedule meeting API failed:', error)
+      throw error
+    }
+  }
+
+  // Get the last meeting suggestion
+  getLastMeetingSuggestion() {
+    return this.lastMeetingSuggestion
+  }
+
+  // Clear meeting suggestion
+  clearMeetingSuggestion() {
+    this.lastMeetingSuggestion = null
   }
 
   async checkBackendHealth() {
