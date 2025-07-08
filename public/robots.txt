@@ -1,18 +1,65 @@
-# https://www.robotstxt.org/robotstxt.html
-# Allow all crawlers
+# robots.txt for portfolio.buildwithhimanshu.com
+# Professional Portfolio of Himanshu Chaudhary - Senior Software Engineer
+
 User-agent: *
 Allow: /
 
-# Sitemap location
-Sitemap: https://himanshuchaudhary.com/sitemap.xml
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
 
-# Disallow certain paths
-Disallow: /api/
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+# Disallow admin or private directories (if any)
 Disallow: /admin/
-Disallow: /private/
-Disallow: /*.json$
-Disallow: /*.js$
-Disallow: /*.css$
+Disallow: /.git/
+Disallow: /node_modules/
+Disallow: /src/
+Disallow: /.env
+Disallow: /package.json
+Disallow: /package-lock.json
 
-# Crawl-delay
-Crawl-delay: 10
+# Allow important files
+Allow: /favicon.ico
+Allow: /robots.txt
+Allow: /sitemap.xml
+Allow: /manifest.json
+Allow: /*.css
+Allow: /*.js
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.gif
+Allow: /*.svg
+Allow: /*.pdf
+
+# Sitemap location
+Sitemap: https://portfolio.buildwithhimanshu.com/sitemap.xml
+
+# Crawl delay (optional - be respectful)
+Crawl-delay: 1
+
+# Host preference (canonical domain)
+Host: portfolio.buildwithhimanshu.com

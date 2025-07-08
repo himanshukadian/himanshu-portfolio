@@ -1,43 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: http://ogp.me/ns#">
 
 <head>
   <meta charset="utf-8" />
-  <link rel="icon" type="image/png" sizes="32x32" href="logo-hc.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="logo-hc.png" />
+  
+  <!-- Favicon and Icons -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-192.png" />
   <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#6C63FF" />
-  <meta name="description" content="Himanshu Chaudhary - Software Engineer II at Wayfair" />
+  
+  <!-- Basic Meta Tags -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="format-detection" content="telephone=no" />
+  
+  <!-- Primary Meta Tags -->
+  <title>Himanshu Chaudhary | Senior Software Engineer | Full Stack Developer</title>
+  <meta name="title" content="Himanshu Chaudhary | Senior Software Engineer | Full Stack Developer" />
+  <meta name="description" content="Senior Software Engineer at Wayfair with expertise in Full Stack Development, Cloud Architecture, AI/ML, and System Design. Specialized in Python, Java, React, AWS, and Microservices." />
+  <meta name="keywords" content="Himanshu Chaudhary, Senior Software Engineer, Full Stack Developer, Cloud Architect, AI Engineer, Machine Learning, Python, Java, React, AWS, GCP, Microservices, System Design, Portfolio, Resume, Wayfair, Amazon, NIT Warangal, DevOps, Backend Developer, Frontend Developer" />
+  <meta name="author" content="Himanshu Chaudhary" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow" />
+  <meta name="language" content="English" />
+  <meta name="revisit-after" content="7 days" />
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://portfolio.buildwithhimanshu.com/" />
+  
+  <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json" />
-  <title>Himanshu Chaudhary | Portfolio</title>
-  <meta name="description" content="Software Engineer II at Wayfair | Full Stack Developer | Cloud Native Developer | System Designer">
-
-  <!-- Google / Search Engine Tags -->
-  <meta itemprop="name" content="Himanshu Chaudhary | Portfolio">
-  <meta itemprop="description" content="Software Engineer II at Wayfair | Full Stack Developer | Cloud Native Developer | System Designer">
-  <meta itemprop="image" content="%PUBLIC_URL%/og-image.png">
-
-  <!-- Facebook Meta Tags -->
-  <meta property="og:url" content="https://himanshuchaudhary.dev">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="Himanshu Chaudhary | Portfolio">
-  <meta property="og:description" content="Software Engineer II at Wayfair | Full Stack Developer | Cloud Native Developer | System Designer">
-  <meta property="og:image" content="%PUBLIC_URL%/og-image.png">
-
-  <!-- Twitter Meta Tags -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Himanshu Chaudhary | Portfolio">
-  <meta name="twitter:description" content="Software Engineer II at Wayfair | Full Stack Developer | Cloud Native Developer | System Designer">
-  <meta name="twitter:image" content="%PUBLIC_URL%/og-image.png">
-
-  <link rel="canonical" href="https://himanshuchaudhary.dev/" />
-  <meta name="keywords" content="Himanshu Chaudhary, Software Engineer, Full Stack Developer, AI Engineer, Cloud Native, Portfolio, React, Python, Django, AWS, Resume, Projects, Wayfair, Amazon, NIT Warangal" />
+  
+  <!-- OpenGraph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Himanshu Chaudhary Portfolio" />
+  <meta property="og:url" content="https://portfolio.buildwithhimanshu.com/" />
+  <meta property="og:title" content="Himanshu Chaudhary | Senior Software Engineer | Full Stack Developer" />
+  <meta property="og:description" content="Senior Software Engineer at Wayfair with expertise in Full Stack Development, Cloud Architecture, AI/ML, and System Design. Specialized in Python, Java, React, AWS, and Microservices." />
+  <meta property="og:image" content="https://portfolio.buildwithhimanshu.com/og-image.png" />
+  <meta property="og:image:secure_url" content="https://portfolio.buildwithhimanshu.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Himanshu Chaudhary - Senior Software Engineer Portfolio" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="article:author" content="Himanshu Chaudhary" />
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@himanshuchaudhary" />
+  <meta name="twitter:creator" content="@himanshuchaudhary" />
+  <meta name="twitter:title" content="Himanshu Chaudhary | Senior Software Engineer | Full Stack Developer" />
+  <meta name="twitter:description" content="Senior Software Engineer at Wayfair with expertise in Full Stack Development, Cloud Architecture, AI/ML, and System Design." />
+  <meta name="twitter:image" content="https://portfolio.buildwithhimanshu.com/og-image.png" />
+  <meta name="twitter:image:alt" content="Himanshu Chaudhary - Senior Software Engineer Portfolio" />
+  
+  <!-- LinkedIn -->
+  <meta property="article:published_time" content="2024-01-01T00:00:00.000Z" />
+  <meta property="article:modified_time" content="2024-12-01T00:00:00.000Z" />
+  <meta property="article:section" content="Technology" />
+  <meta property="article:tag" content="Software Engineering" />
+  
+  <!-- Additional SEO Meta Tags -->
+  <meta name="application-name" content="Himanshu Chaudhary Portfolio" />
+  <meta name="msapplication-TileColor" content="#2563eb" />
+  <meta name="msapplication-config" content="browserconfig.xml" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Himanshu Portfolio" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  
+  <!-- Preconnect to External Domains -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  
+  <!-- DNS Prefetch -->
+  <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+  <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+  
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Himanshu Chaudhary",
+    "jobTitle": "Senior Software Engineer",
+    "description": "Senior Software Engineer at Wayfair with expertise in Full Stack Development, Cloud Architecture, AI/ML, and System Design",
+    "url": "https://portfolio.buildwithhimanshu.com",
+    "image": "https://portfolio.buildwithhimanshu.com/og-image.png",
+    "sameAs": [
+      "https://linkedin.com/in/himanshuchaudhary",
+      "https://github.com/himanshuchaudhary",
+      "https://twitter.com/himanshuchaudhary"
+    ],
+    "worksFor": {
+      "@type": "Organization",
+      "name": "Wayfair",
+      "description": "E-commerce technology company"
+    },
+    "alumniOf": {
+      "@type": "Organization",
+      "name": "National Institute of Technology, Warangal",
+      "description": "Premier engineering institute in India"
+    },
+    "knowsAbout": [
+      "Full Stack Development",
+      "Cloud Architecture",
+      "Artificial Intelligence",
+      "Machine Learning",
+      "Python Programming",
+      "Java Programming",
+      "React Development",
+      "AWS Cloud Services",
+      "System Design",
+      "Microservices Architecture"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "professional",
+      "url": "https://portfolio.buildwithhimanshu.com"
+    }
+  }
+  </script>
+  
+  <!-- Website Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Himanshu Chaudhary Portfolio",
+    "description": "Professional portfolio showcasing software engineering expertise and projects",
+    "url": "https://portfolio.buildwithhimanshu.com",
+    "author": {
+      "@type": "Person",
+      "name": "Himanshu Chaudhary"
+    },
+    "inLanguage": "en-US",
+    "copyrightYear": "2024",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://portfolio.buildwithhimanshu.com/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  
+  <!-- Professional Profile Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "dateCreated": "2024-01-01T00:00:00.000Z",
+    "dateModified": "2024-12-01T00:00:00.000Z",
+    "mainEntity": {
+      "@type": "Person",
+      "name": "Himanshu Chaudhary",
+      "alternateName": "HC",
+      "description": "Senior Software Engineer specializing in Full Stack Development and Cloud Architecture",
+      "image": "https://portfolio.buildwithhimanshu.com/og-image.png",
+      "sameAs": [
+        "https://linkedin.com/in/himanshuchaudhary",
+        "https://github.com/himanshuchaudhary"
+      ]
+    }
+  }
+  </script>
 </head>
 
 <body>
-  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <noscript>
+    <div style="text-align: center; padding: 20px; font-family: Arial, sans-serif;">
+      <h1>Himanshu Chaudhary - Senior Software Engineer</h1>
+      <p>This portfolio requires JavaScript to function properly. Please enable JavaScript in your browser.</p>
+      <p>For more information, visit: <a href="https://linkedin.com/in/himanshuchaudhary">LinkedIn Profile</a></p>
+    </div>
+  </noscript>
   <div id="root"></div>
 </body>
 

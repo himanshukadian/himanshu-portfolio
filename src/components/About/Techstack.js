@@ -5,31 +5,55 @@ import {
   SiReact,
   SiNodedotjs,
   SiPython,
-  SiAmazonaws,
-  SiDocker,
-  SiKubernetes,
   SiMongodb,
   SiPostgresql,
   SiTypescript,
-  SiGit,
-  SiJenkins,
+  SiSpringboot,
+  SiMysql,
+  SiRedis,
+  SiDocker,
+  SiKubernetes,
+  SiHibernate,
+  SiOpenai,
 } from "react-icons/si";
+import { resumeData } from "../../data/resume";
+
+// Icon mapping for technologies
+const iconMap = {
+  'Python': SiPython,
+  'Java': SiSpringboot, // Using Spring Boot as Java representative
+  'JavaScript': SiJavascript,
+  'TypeScript': SiTypescript,
+  'React': SiReact,
+  'Node.js': SiNodedotjs,
+  'Spring Boot': SiSpringboot,
+  'Docker': SiDocker,
+  'Kubernetes': SiKubernetes,
+  'MongoDB': SiMongodb,
+  'PostgreSQL': SiPostgresql,
+  'MySQL': SiMysql,
+  'Redis': SiRedis,
+  'Hibernate': SiHibernate,
+  'AI/GenAI': SiOpenai,
+};
 
 function Techstack() {
-  const technologies = [
-    { Icon: SiJavascript, label: "JavaScript" },
-    { Icon: SiTypescript, label: "TypeScript" },
-    { Icon: SiReact, label: "React" },
-    { Icon: SiNodedotjs, label: "Node.js" },
-    { Icon: SiPython, label: "Python" },
-    { Icon: SiAmazonaws, label: "AWS" },
-    { Icon: SiDocker, label: "Docker" },
-    { Icon: SiKubernetes, label: "Kubernetes" },
-    { Icon: SiMongodb, label: "MongoDB" },
-    { Icon: SiPostgresql, label: "PostgreSQL" },
-    { Icon: SiGit, label: "Git" },
-    { Icon: SiJenkins, label: "Jenkins" },
+  // Combine languages and key technologies from resume data
+  const allSkills = [
+    ...resumeData.skills.languages,
+    ...resumeData.skills.technologies.filter(tech => 
+      ['Spring Boot', 'Docker', 'Kubernetes', 'Hibernate', 'AI/GenAI', 'React', 'Node.js'].includes(tech)
+    )
   ];
+
+  // Filter to only include skills that have icons
+  const technologies = allSkills
+    .filter(skill => iconMap[skill])
+    .map(skill => ({
+      Icon: iconMap[skill],
+      label: skill
+    }))
+    .slice(0, 12); // Increased to 12 to accommodate more technologies
 
   return (
     <Row style={{ justifyContent: "center", paddingBottom: "50px" }}>

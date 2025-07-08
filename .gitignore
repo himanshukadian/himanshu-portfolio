@@ -59,3 +59,17 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Cache
+.cache/
+node_modules/.cache/
+blog-app-new/*
+blog-backend-new/
+blog-backend/

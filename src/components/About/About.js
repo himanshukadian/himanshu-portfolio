@@ -3,6 +3,7 @@ import { Container, Row, Col } from "react-bootstrap";
 import Techstack from "./Techstack";
 import Toolstack from "./Toolstack";
 import laptopImg from "../../Assets/about.png";
+import { resumeData } from "../../data/resume";
 
 function About() {
   return (
@@ -22,11 +23,19 @@ function About() {
             </h1>
             <div className="about-card">
               <p className="about-body">
-                Hi! I'm <span className="purple">Himanshu Chaudhary</span> from <span className="purple">Bengaluru, India</span>. 
-                I'm a Software Engineer II specializing in building intelligent solutions.
+                Hi! I'm <span className="purple">{resumeData.name}</span> from <span className="purple">{resumeData.location}</span>. 
+                I'm a {resumeData.title} specializing in building intelligent solutions.
               </p>
-              <p className="about-body" style={{ fontWeight: 600, color: 'var(--secondary-color)', fontSize: '1.15em', marginBottom: '1.2rem' }}>
+              <p className="about-body" style={{ 
+                fontWeight: 600, 
+                color: 'var(--secondary-color)', 
+                fontSize: '1.15em', 
+                marginBottom: '1.2rem' 
+              }}>
                 <em>My mission: To build scalable, intelligent systems that empower people and organizations to achieve more through technology.</em>
+              </p>
+              <p className="about-body">
+                {resumeData.summary}
               </p>
               <p className="about-body">
                 My expertise includes:
@@ -41,15 +50,6 @@ function About() {
                 I'm passionate about creating efficient, scalable solutions and contributing to open-source projects.
               </p>
             </div>
-            {/* Full Skillset Section */}
-            <div className="about-card" style={{ marginTop: '2rem', background: 'var(--bg-secondary)', borderRadius: 16, padding: '2rem' }}>
-              <h3 style={{ fontWeight: 700, color: 'var(--primary-color)', marginBottom: '1rem' }}>Full Skillset</h3>
-              <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
-                <li><strong>Languages:</strong> Python, Java, C++, JavaScript, SQL</li>
-                <li><strong>Developer Tools:</strong> VS Code, IntelliJ, Google Cloud Platform, AWS, Kafka, DynamoDB, Lambda, Cloud Functions</li>
-                <li><strong>Technologies/Frameworks:</strong> Spring Boot, Hibernate, JDBC, Flask, Django, Docker, Kubernetes, Microservice Architecture, System Design, Generative AI (Gemini/OpenAI)</li>
-              </ul>
-            </div>
           </Col>
           <Col
             md={5}
@@ -60,11 +60,11 @@ function About() {
           </Col>
         </Row>
         <h1 className="project-heading">
-          Professional <strong className="purple">Skillset </strong>
+          Technologies & <strong className="purple">Frameworks</strong>
         </h1>
         <Techstack />
         <h1 className="project-heading">
-          <strong className="purple">Tools</strong> I use
+          Development <strong className="purple">Tools & Cloud Platforms</strong>
         </h1>
         <Toolstack />
       </Container>

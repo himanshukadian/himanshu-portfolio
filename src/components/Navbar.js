@@ -8,6 +8,15 @@ import { FaSun, FaMoon } from "react-icons/fa";
 import { CgGitFork } from "react-icons/cg";
 import { AiFillStar } from "react-icons/ai";
 import Button from "react-bootstrap/Button";
+import { ImBlog } from "react-icons/im";
+import { MdContactMail } from "react-icons/md";
+import {
+  AiOutlineHome,
+  AiOutlineFundProjectionScreen,
+  AiOutlineUser,
+} from "react-icons/ai";
+import { CgFileDocument } from "react-icons/cg";
+import { resumeData } from "../data/resume";
 
 function NavBar() {
   const [expand, setExpand] = useState(false);
@@ -17,6 +26,11 @@ function NavBar() {
   // Helper to determine if we're on home page
   const isHome = location.pathname === "/";
 
+  // Get initials for brand
+  const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
   const navVariants = {
     hidden: { y: -50, opacity: 0 },
     visible: {
@@ -24,6 +38,14 @@ function NavBar() {
       opacity: 1,
       transition: { duration: 0.5, ease: "easeOut" }
     }
+  };
+
+  // Helper function to determine if a path is active
+  const isActive = (path) => {
+    if (path === "/") {
+      return location.pathname === "/";
+    }
+    return location.pathname.includes(path);
   };
 
   return (
@@ -44,13 +66,12 @@ function NavBar() {
             : 'rgba(255, 255, 255, 0.85)',
           boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
           borderBottom: isDark ? '1px solid #232946' : '1px solid #eaeaea',
-          padding: '1.2rem 0.5rem',
           minHeight: 72,
         }}
       >
-        <Container>
+        <Container fluid className="px-2 px-md-3">
           <Navbar.Brand as={RouterLink} to="/" className="d-flex align-items-center" style={{ fontWeight: 800, fontSize: 26, letterSpacing: 1.5, color: 'var(--primary-color)' }}>
-            HC
+            {getInitials(resumeData.name)}
           </Navbar.Brand>
           <motion.button
             className="theme-toggle-btn"
@@ -90,62 +111,70 @@ function NavBar() {
           <Navbar.Collapse id="responsive-navbar-nav">
             <Nav className="ms-auto align-items-center" defaultActiveKey="#home">
               <Nav.Item>
-                <Nav.Link as={RouterLink} to="/" className="modern-nav-link">
-                  Home
+                <Nav.Link 
+                  as={RouterLink} 
+                  to="/" 
+                  onClick={() => setExpand(false)}
+                  className={`modern-nav-link ${isActive("/") ? "active" : ""}`}
+                >
+                  <AiOutlineHome style={{ marginBottom: "2px" }} /> Home
                 </Nav.Link>
               </Nav.Item>
+
               <Nav.Item>
-                {isHome ? (
-                  <Nav.Link as={ScrollLink} to="about" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
-                    About
-                  </Nav.Link>
-                ) : (
-                  <Nav.Link as={RouterLink} to="/#about" className="modern-nav-link">
-                  About
+                <Nav.Link 
+                  href="/#about"
+                  onClick={() => setExpand(false)}
+                  className={`modern-nav-link ${isActive("/about") ? "active" : ""}`}
+                >
+                  <AiOutlineUser style={{ marginBottom: "2px" }} /> About
                 </Nav.Link>
-                )}
               </Nav.Item>
+
               <Nav.Item>
-                {isHome ? (
-                  <Nav.Link as={ScrollLink} to="projects" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
-                    Projects
-                  </Nav.Link>
-                ) : (
-                  <Nav.Link as={RouterLink} to="/#projects" className="modern-nav-link">
+                <Nav.Link
+                  href="/#projects"
+                  onClick={() => setExpand(false)}
+                  className={`modern-nav-link ${isActive("/project") ? "active" : ""}`}
+                >
+                  <AiOutlineFundProjectionScreen
+                    style={{ marginBottom: "2px" }}
+                  />{" "}
                   Projects
                 </Nav.Link>
-                )}
               </Nav.Item>
+
               <Nav.Item>
-                {isHome ? (
-                  <Nav.Link as={ScrollLink} to="resume" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
-                    Resume
-                  </Nav.Link>
-                ) : (
-                  <Nav.Link as={RouterLink} to="/#resume" className="modern-nav-link">
-                  Resume
+                <Nav.Link
+                  href="/#resume"
+                  onClick={() => setExpand(false)}
+                  className={`modern-nav-link ${isActive("/resume") ? "active" : ""}`}
+                >
+                  <CgFileDocument style={{ marginBottom: "2px" }} /> Resume
                 </Nav.Link>
-                )}
               </Nav.Item>
+
               <Nav.Item>
                 <Nav.Link href="https://blog.buildwithhimanshu.com" className="modern-nav-link">
-                  Blog
+                  <ImBlog style={{ marginBottom: "2px" }} /> Blog
                 </Nav.Link>
               </Nav.Item>
+
               <Nav.Item>
                 {isHome ? (
                   <Nav.Link as={ScrollLink} to="contact" spy={true} smooth={true} offset={-70} duration={500} className="modern-nav-link">
-                    Contact
+                    <MdContactMail style={{ marginBottom: "2px" }} /> Contact
                   </Nav.Link>
                 ) : (
                   <Nav.Link as={RouterLink} to="/#contact" className="modern-nav-link">
-                  Contact
-                </Nav.Link>
+                    <MdContactMail style={{ marginBottom: "2px" }} /> Contact
+                  </Nav.Link>
                 )}
               </Nav.Item>
+
               <Nav.Item className="fork-btn ms-3">
                 <Button
-                  href="https://github.com/himanshukadian"
+                  href={resumeData.github}
                   target="_blank"
                   className="fork-btn-inner"
                   style={{

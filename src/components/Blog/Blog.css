@@ -677,13 +677,20 @@
   background: var(--input-bg) !important;
   border-color: var(--input-border) !important;
 }
+.search-input-group:focus-within {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(0,230,254,0.2) !important;
+}
 .category-btn {
   background: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
+  border: 1px solid var(--card-border) !important;
+  transition: all 0.3s ease;
 }
 .category-btn.active, .category-btn:hover {
   background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
   color: #fff !important;
+  border-color: var(--primary-color) !important;
 }
 .read-more-btn, .btn, .btn-primary {
   background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
@@ -722,6 +729,11 @@
 .tag {
   color: var(--primary-color) !important;
   background: rgba(0,230,254,0.10) !important;
+  border: 1px solid rgba(0,230,254,0.3) !important;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85em;
+  font-weight: 500;
 }
 [data-theme="dark"] .tag {
   color: var(--primary-color) !important;
@@ -734,4 +746,279 @@
 [data-theme="dark"] .markdown-content, [data-theme="dark"] .markdown-content h1, [data-theme="dark"] .markdown-content h2, [data-theme="dark"] .markdown-content h3, [data-theme="dark"] .markdown-content h4, [data-theme="dark"] .markdown-content h5, [data-theme="dark"] .markdown-content h6, [data-theme="dark"] .markdown-content p, [data-theme="dark"] .markdown-content ul, [data-theme="dark"] .markdown-content ol, [data-theme="dark"] .markdown-content li, [data-theme="dark"] .markdown-content pre, [data-theme="dark"] .markdown-content code, [data-theme="dark"] .markdown-content blockquote {
   color: #fff !important;
   background: none !important;
+}
+
+/* Blog Component Styles with Full Theme Support */
+
+.blog-container, .resume-section, .blog-card, .project-card-view, .card, .search-input-group, .category-btn, .read-more-btn, .card-title, .card-text, .search-input, .search-icon, .tag, .post-meta, .blog-header h1, .markdown-content, .btn, .btn-primary {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--card-border) !important;
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.blog-card, .project-card-view, .card {
+  background: var(--card-bg) !important;
+  border: 1.5px solid var(--card-border) !important;
+  color: var(--text-primary) !important;
+}
+
+.search-input-group {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+}
+
+.search-input-group:focus-within {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(0,230,254,0.2) !important;
+}
+
+.category-btn {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border) !important;
+  transition: all 0.3s ease;
+}
+
+.category-btn.active, .category-btn:hover {
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
+  color: #fff !important;
+  border-color: var(--primary-color) !important;
+}
+
+.read-more-btn, .btn, .btn-primary {
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+.card-title {
+  color: var(--text-primary) !important;
+  font-weight: 800 !important;
+}
+
+.card-text, .post-meta {
+  color: var(--text-secondary) !important;
+}
+
+.search-input, .search-icon {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.search-input::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 0.7 !important;
+}
+
+.search-icon {
+  color: var(--text-secondary) !important;
+}
+
+.blog-header h1 {
+  color: var(--text-primary) !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  -webkit-text-fill-color: initial !important;
+  text-shadow: none;
+}
+
+.tag {
+  color: var(--primary-color) !important;
+  background: rgba(0,230,254,0.10) !important;
+  border: 1px solid rgba(0,230,254,0.3) !important;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+/* Markdown content styling */
+.markdown-content, 
+.markdown-content h1, 
+.markdown-content h2, 
+.markdown-content h3, 
+.markdown-content h4, 
+.markdown-content h5, 
+.markdown-content h6, 
+.markdown-content p, 
+.markdown-content ul, 
+.markdown-content ol, 
+.markdown-content li {
+  color: var(--text-primary) !important;
+  background: none !important;
+}
+
+.markdown-content pre {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border) !important;
+}
+
+.markdown-content code {
+  background: var(--card-bg) !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--card-border) !important;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid var(--primary-color) !important;
+  background: rgba(0,230,254,0.07) !important;
+  color: var(--text-secondary) !important;
+  padding: 0.8em 1.2em;
+  margin: 1.2em 0;
+  border-radius: 6px;
+}
+
+.markdown-content a {
+  color: var(--primary-color) !important;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.markdown-content a:hover {
+  color: var(--secondary-color) !important;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1.5px solid var(--card-border) !important;
+  margin: 2em 0;
+}
+
+/* Blog search styling */
+.blog-search-container {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.blog-search-input {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  width: 100%;
+  font-size: 1rem;
+}
+
+.blog-search-input:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(0,230,254,0.2) !important;
+  outline: none;
+}
+
+.blog-search-input::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 0.7;
+}
+
+/* Blog pagination */
+.pagination {
+  background: var(--bg-secondary) !important;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.pagination .page-item .page-link {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border) !important;
+}
+
+.pagination .page-item.active .page-link {
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
+  color: #fff !important;
+  border-color: var(--primary-color) !important;
+}
+
+.pagination .page-item:hover .page-link {
+  background: var(--primary-color) !important;
+  color: #fff !important;
+  border-color: var(--primary-color) !important;
+}
+
+/* Blog filter tags */
+.blog-filters {
+  background: var(--bg-secondary) !important;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.filter-tag {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: 20px;
+  padding: 0.3rem 1rem;
+  margin: 0.2rem;
+  display: inline-block;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-tag.active,
+.filter-tag:hover {
+  background: var(--primary-color) !important;
+  color: #fff !important;
+  border-color: var(--primary-color) !important;
+}
+
+/* Blog content readability */
+.blog-content {
+  line-height: 1.8;
+  font-size: 1.1rem;
+  color: var(--text-primary) !important;
+}
+
+.blog-content h1,
+.blog-content h2,
+.blog-content h3,
+.blog-content h4,
+.blog-content h5,
+.blog-content h6 {
+  color: var(--text-primary) !important;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.blog-content p {
+  color: var(--text-primary) !important;
+  margin-bottom: 1.2rem;
+}
+
+.blog-content ul,
+.blog-content ol {
+  color: var(--text-primary) !important;
+  margin-bottom: 1.2rem;
+}
+
+.blog-content li {
+  color: var(--text-primary) !important;
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .blog-container {
+    padding: 1rem;
+  }
+  
+  .blog-card {
+    margin-bottom: 1.5rem;
+  }
+  
+  .blog-filters {
+    padding: 0.5rem;
+  }
+  
+  .filter-tag {
+    margin: 0.1rem;
+    padding: 0.2rem 0.8rem;
+    font-size: 0.9rem;
+  }
 } 
