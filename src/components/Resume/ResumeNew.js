@@ -28,9 +28,20 @@ function Resume() {
                   className="btn btn-primary"
                   href="/Himanshu_Resume.pdf"
                   download
+                  style={{ marginRight: "1rem" }}
                 >
                   Download Full Resume (PDF)
                 </Button>
+                <p style={{ 
+                  marginTop: "1rem", 
+                  color: "var(--text-secondary)",
+                  fontSize: "0.9rem",
+                  fontStyle: "italic"
+                }}>
+                  💡 Want a customized resume for a specific job? 
+                  <br />
+                  <strong>Ask the chat assistant</strong> to tailor my resume for any position!
+                </p>
               </div>
             </div>
             

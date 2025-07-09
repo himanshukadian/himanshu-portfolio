@@ -33,7 +33,7 @@ function Contact() {
     }
 
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5001';
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://api.buildwithhimanshu.com';
       const response = await fetch(`${backendUrl}/api/contact/submit`, {
         method: 'POST',
         headers: {

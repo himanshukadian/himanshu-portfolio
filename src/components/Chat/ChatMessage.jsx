@@ -66,6 +66,70 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
       return (
         <div key={pIndex} style={{ marginBottom: pIndex < paragraphs.length - 1 ? '16px' : '0' }}>
           {lines.map((line, lIndex) => {
+            // Handle download links - convert to buttons
+            const downloadMatch = line.match(/\[📄 ([^\]]+)\]\(([^)]+)\)/)
+            if (downloadMatch) {
+              const fileName = downloadMatch[1]
+              const downloadUrl = downloadMatch[2]
+              
+              return (
+                <div key={lIndex} style={{ 
+                  marginTop: '8px',
+                  marginBottom: '8px',
+                  textAlign: 'center'
+                }}>
+                  <a
+                    href={downloadUrl}
+                    download={fileName}
+                    title={`Download ${fileName}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      background: `linear-gradient(135deg, ${safeColors.primaryColor}, ${safeColors.secondaryColor})`,
+                      color: '#fff',
+                      textDecoration: 'none',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-1px)'
+                      e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)'
+                      e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'
+                    }}
+                  >
+                    <span style={{ 
+                      fontSize: '11px',
+                      filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))'
+                    }}>📄</span>
+                    <span style={{ 
+                      fontWeight: '600',
+                      letterSpacing: '0.4px',
+                      textTransform: 'uppercase',
+                      fontSize: '11px',
+                      color: '#ffffff',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+                      lineHeight: '1.2'
+                    }}>
+                      Download Resume
+                    </span>
+                    <span style={{ 
+                      fontSize: '10px',
+                      filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))'
+                    }}>⬇️</span>
+                  </a>
+                </div>
+              )
+            }
+            
             // Handle bullet points
             if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
               return (

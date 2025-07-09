@@ -1,4 +1,5 @@
 import { resumeData } from '../data/resume.js'
+import resumeService from './resumeService.js'
 
 class AIService {
   constructor() {
@@ -17,21 +18,189 @@ class AIService {
     console.log(`🚀 Backend URL: ${this.backendUrl}`)
   }
 
-  // Generate AI response with scheduling suggestions
+  // Enhanced AI response with smart query categorization and routing
   async generateResponse(userQuery, chatHistory = []) {
     try {
       this.isLoading = true
       
+      console.log('🎯 Smart Query Analysis:', userQuery.substring(0, 100) + '...')
+      
+      // Step 1: Analyze query intent and categorize
+      const queryAnalysis = this.categorizeQuery(userQuery, chatHistory)
+      console.log('📊 Query Category:', queryAnalysis.category, 'Confidence:', queryAnalysis.confidence)
+      
       let response
       
-      // First get the AI response
-      if (this.isModelLoaded && !this.fallbackToRules) {
-        response = await this.generateAPIResponse(userQuery, chatHistory)
-      } else {
-        response = this.generateRuleBasedResponse(userQuery)
+      // Step 2: Route to appropriate specialized handler
+      switch (queryAnalysis.category) {
+        case 'resume_customization':
+          console.log('🎯 Routing to Resume Customization Handler')
+          response = await this.handleResumeQuery(userQuery, chatHistory, queryAnalysis)
+          break
+          
+        case 'meeting_scheduling':
+          console.log('📅 Routing to Meeting Scheduling Handler') 
+          response = await this.handleMeetingQuery(userQuery, chatHistory, queryAnalysis)
+          break
+          
+        case 'portfolio_info':
+        default:
+          console.log('💼 Routing to Portfolio Information Handler')
+          response = await this.handlePortfolioQuery(userQuery, chatHistory, queryAnalysis)
+          break
+      }
+      
+      // Step 3: Post-process for additional suggestions (only for portfolio queries)
+      if (queryAnalysis.category === 'portfolio_info') {
+        response = await this.addContextualSuggestions(response, userQuery, chatHistory)
       }
 
-      // Check if we should suggest a meeting
+      return response
+    } catch (error) {
+      console.error('❌ AI response generation failed:', error)
+      return this.generateFallbackResponse(userQuery, error)
+    } finally {
+      this.isLoading = false
+    }
+  }
+
+  // Simplified query categorization - minimal pattern matching for routing only
+  categorizeQuery(userQuery, chatHistory = []) {
+    const query = userQuery.toLowerCase().trim()
+    const queryLength = userQuery.length
+    
+    // Very simple routing logic - let AI handle the detailed understanding
+    
+    // Resume: Long queries with job-related keywords likely job descriptions
+    const isLikelyJobDescription = queryLength > 100 && 
+      (/job|position|role|requirements|responsibilities|candidate|hiring/i.test(userQuery) ||
+       /senior|junior|lead|principal.*engineer/i.test(userQuery))
+    
+    const hasResumeIntent = /resume|cv|customize|tailor|apply/i.test(userQuery)
+    
+    // Meeting: Direct meeting/scheduling keywords  
+    const hasMeetingIntent = /meet|schedule|call|discuss|talk|connect|appointment/i.test(userQuery)
+    
+    // Simple scoring
+    let category = 'portfolio_info' // Default
+    let confidence = 0.6
+    
+    if (isLikelyJobDescription || hasResumeIntent) {
+      category = 'resume_customization'
+      confidence = 0.9
+    } else if (hasMeetingIntent) {
+      category = 'meeting_scheduling'  
+      confidence = 0.8
+    }
+    
+    return {
+      category,
+      confidence,
+      queryLength,
+      indicators: {
+        isLongQuery: queryLength > 100,
+        hasJobKeywords: /job|position|role|hiring|candidate/i.test(userQuery),
+        hasMeetingKeywords: /meet|call|schedule|discuss|talk/i.test(userQuery),
+        hasResumeKeywords: /resume|cv|customize|tailor|apply/i.test(userQuery)
+      }
+    }
+  }
+
+  // Specialized handler for resume customization queries - AI-powered
+  async handleResumeQuery(userQuery, chatHistory, analysis) {
+    try {
+      console.log('🎯 Processing resume customization request with AI')
+      
+      // Let AI determine if this is a job description or just asking about resume services
+      if (analysis.queryLength > 50) {
+        // Likely a job description - process directly
+        const jobDetails = {
+          jobDescription: userQuery,
+          companyName: '',  // Let AI extract
+          jobTitle: '',     // Let AI extract  
+          hasRequiredInfo: true
+        }
+        
+        return await this.processResumeCustomization(jobDetails)
+      } else {
+        // Short query - use AI to generate helpful resume information
+        try {
+          const response = await this.generateAPIResponse(userQuery, chatHistory)
+          return response
+        } catch (error) {
+          console.log('🔄 AI failed, using simple resume fallback')
+          return this.requestJobDescription()
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Resume handler error:', error)
+      return this.generateSimpleFallback(userQuery)
+    }
+  }
+
+  // Specialized handler for meeting/scheduling queries - AI-powered
+  async handleMeetingQuery(userQuery, chatHistory, analysis) {
+    try {
+      console.log('📅 Processing meeting request with AI')
+      
+      // First try to get AI-powered meeting suggestion
+      try {
+        const meetingSuggestion = await this.checkMeetingSuggestion(userQuery, chatHistory)
+        if (meetingSuggestion && meetingSuggestion.shouldSuggest) {
+          this.lastMeetingSuggestion = meetingSuggestion
+          
+          // Let AI generate the response with meeting context
+          const aiResponse = await this.generateAPIResponse(userQuery, chatHistory)
+          return aiResponse + `\n\n📞 ${meetingSuggestion.autoMessage}`
+        }
+      } catch (error) {
+        console.log('🔄 Meeting API failed, using AI response only')
+      }
+      
+      // Use AI to generate meeting response
+      try {
+        const response = await this.generateAPIResponse(userQuery, chatHistory)
+        return response
+      } catch (error) {
+        console.log('🔄 AI failed, using simple meeting fallback')
+        return '📅 **Let\'s Schedule a Meeting!**\n\n' +
+               'I\'d love to connect! You can reach me at:\n' +
+               '• Email: himanshu.c.official@gmail.com\n' +
+               '• LinkedIn: https://www.linkedin.com/in/himanshucofficial/\n\n' +
+               '💬 Or continue chatting here and I\'ll help coordinate a time!'
+      }
+      
+    } catch (error) {
+      console.error('❌ Meeting handler error:', error)
+      return this.generateSimpleFallback(userQuery)
+    }
+  }
+
+  // Specialized handler for portfolio information queries
+  async handlePortfolioQuery(userQuery, chatHistory, analysis) {
+    try {
+      console.log('💼 Processing portfolio information request with AI')
+      
+      // Always try AI first - this is the primary method
+      try {
+        const response = await this.generateAPIResponse(userQuery, chatHistory)
+        return response
+      } catch (error) {
+        console.log('🔄 AI failed, trying simple fallback')
+        return this.generateSimpleFallback(userQuery)
+      }
+      
+    } catch (error) {
+      console.error('❌ Portfolio handler error:', error)
+      return this.generateSimpleFallback(userQuery)
+    }
+  }
+
+  // Add contextual suggestions based on the conversation
+  async addContextualSuggestions(response, userQuery, chatHistory) {
+    try {
+      // Check if we should suggest a meeting (only for portfolio queries)
       const shouldCheckMeeting = this.shouldSuggestMeeting(userQuery, chatHistory, response)
       
       if (shouldCheckMeeting) {
@@ -39,23 +208,64 @@ class AIService {
           const meetingSuggestion = await this.checkMeetingSuggestion(userQuery, chatHistory)
           if (meetingSuggestion && meetingSuggestion.shouldSuggest) {
             response += `\n\n📅 ${meetingSuggestion.autoMessage}`
-            
-            // Store meeting suggestion for frontend to display
             this.lastMeetingSuggestion = meetingSuggestion
           }
         } catch (error) {
           console.error('Meeting suggestion failed:', error)
-          // Don't fail the main response if meeting suggestion fails
         }
       }
-
+      
+      // Add helpful suggestions based on query content
+      const query = userQuery.toLowerCase()
+      if (query.includes('project') && !query.includes('all')) {
+        response += '\n\n💡 **Tip:** Ask "show me all your projects" to see both work and personal projects!'
+      } else if (query.includes('skill') && !query.includes('tech')) {
+        response += '\n\n💡 **Also available:** Resume customization service for job applications!'
+      }
+      
       return response
+      
     } catch (error) {
-      console.error('AI response generation failed:', error)
-      return this.generateRuleBasedResponse(userQuery)
-    } finally {
-      this.isLoading = false
+      console.error('Failed to add contextual suggestions:', error)
+      return response
     }
+  }
+
+  // Simple fallback response without keyword matching - AI-first approach
+  generateFallbackResponse(userQuery, error) {
+    console.error('AI service unavailable, providing simple fallback:', error.message)
+    return this.generateSimpleFallback(userQuery)
+  }
+
+  // Simple fallback when AI is completely unavailable
+  generateSimpleFallback(userQuery) {
+    return `🤖 **AI Assistant Temporarily Unavailable**\n\n` +
+           `I'm currently having trouble connecting to my AI backend. ` +
+           `I can help you with:\n\n` +
+           `📄 **Resume Customization** - Paste job descriptions for AI-powered resume tailoring\n` +
+           `📅 **Meeting Scheduling** - Discuss opportunities and technical topics\n` +
+           `💼 **Portfolio Information** - Experience, skills, projects, and education\n\n` +
+           `**📧 Direct Contact:**\n` +
+           `• Email: himanshu.c.official@gmail.com\n` +
+           `• LinkedIn: https://www.linkedin.com/in/himanshucofficial/\n\n` +
+           `Please try your question again in a moment when AI service is restored! 🚀`
+  }
+
+  // Helper method for requesting job description
+  requestJobDescription() {
+    return '🎯 **Resume Customization Service**\n\n' +
+           'I can create a customized resume for any job! To get started:\n\n' +
+           '📋 **Just paste the full job description** and I\'ll:\n' +
+           '• Extract company and position details using AI\n' +
+           '• Analyze job requirements intelligently\n' +
+           '• Customize the resume content accordingly\n' +
+           '• Generate a professional PDF download\n\n' +
+           '**Example:** Simply paste the entire job posting text here!\n\n' +
+           '**✨ Features:**\n' +
+           '• AI-powered analysis\n' +
+           '• ATS optimization\n' +
+           '• Professional formatting\n' +
+           '• Instant PDF generation'
   }
 
   async generateAPIResponse(userQuery, chatHistory = []) {
@@ -96,114 +306,15 @@ class AIService {
     }
   }
 
+  // AI-ONLY approach - no keyword matching
   generateRuleBasedResponse(query) {
-    console.log(`🔧 Rule-based processing: "${query}"`)
-    const lowerQuery = query.toLowerCase().trim()
-
-    // COMPREHENSIVE QUERY MATCHING - Handle ALL possible variations
-
-    // 1. MOBEOLOGY/MOBELOGY QUERIES (any variation)
-    if (lowerQuery.includes('mobeology') || lowerQuery.includes('mobelogy') || 
-        (lowerQuery.includes('mobeo') || lowerQuery.includes('mobel'))) {
-      const mobeologyExp = resumeData.experience.find(exp => exp.company === 'Mobeology Communications')
-      return `My work at Mobeology Communications! 📱\n\n**Role:** ${mobeologyExp.role}\n**Duration:** ${mobeologyExp.duration}\n**Location:** ${mobeologyExp.location}\n\n**What I did:**\n${mobeologyExp.highlights.map(h => `• ${h}`).join('\n')}\n\nThis was where I worked on analytics and publisher dashboards!`
-    }
-
-    // 2. ALL PROJECTS QUERIES
-    if (lowerQuery.includes('all') && lowerQuery.includes('project') ||
-        lowerQuery.includes('your project') || 
-        lowerQuery.includes('what project') ||
-        lowerQuery.includes('list project') ||
-        lowerQuery.match(/projects?\?*$/)) {
-      
-      let allProjects = `Here are ALL my projects! 🚀\n\n**🏢 WORK PROJECTS:**\n\n`
-      
-      // Add work projects from each company
-      resumeData.experience.forEach(exp => {
-        allProjects += `**At ${exp.company}:**\n${exp.highlights.map(h => `• ${h}`).join('\n')}\n\n`
-      })
-      
-      allProjects += `**🛠️ PERSONAL PROJECTS:**\n\n`
-      resumeData.projects.forEach(proj => {
-        allProjects += `**${proj.name}:**\n• Technologies: ${proj.technologies.join(', ')}\n• ${proj.description}\n\n`
-      })
-      
-      return allProjects.trim()
-    }
-
-    // 3. WAYFAIR QUERIES
-    if (lowerQuery.includes('wayfair')) {
-      const wayfairExp = resumeData.experience.find(exp => exp.company === 'Wayfair')
-      return `My work at Wayfair! 🏠\n\n**Role:** ${wayfairExp.role}\n**Duration:** ${wayfairExp.duration}\n**Location:** ${wayfairExp.location}\n\n**Key Projects:**\n${wayfairExp.highlights.map(h => `• ${h}`).join('\n')}`
-    }
-
-    // 4. AMAZON QUERIES  
-    if (lowerQuery.includes('amazon')) {
-      const amazonExp = resumeData.experience.find(exp => exp.company === 'Amazon')
-      return `My work at Amazon! 📦\n\n**Role:** ${amazonExp.role}\n**Duration:** ${amazonExp.duration}\n**Location:** ${amazonExp.location}\n\n**Key Projects:**\n${amazonExp.highlights.map(h => `• ${h}`).join('\n')}`
-    }
-
-    // 5. WORK/EXPERIENCE QUERIES
-    if (lowerQuery.includes('work') || lowerQuery.includes('experience') || 
-        lowerQuery.includes('job') || lowerQuery.includes('career')) {
-      return `My work experience! 💼\n\n${resumeData.experience.map((exp, index) => 
-        `**${index + 1}. ${exp.company}** (${exp.duration})\n🏷️ Role: ${exp.role}\n📍 Location: ${exp.location}\n\n**Key achievements:**\n${exp.highlights.map(h => `• ${h}`).join('\n')}\n`
-      ).join('\n')}`
-    }
-
-    // 6. SKILLS/TECH QUERIES
-    if (lowerQuery.includes('skill') || lowerQuery.includes('tech') || 
-        lowerQuery.includes('language') || lowerQuery.includes('technology')) {
-      return `My technical skills! 🛠️\n\n**Programming Languages:** ${resumeData.skills.languages.join(', ')}\n\n**Technologies:** ${resumeData.skills.technologies.join(', ')}\n\n**Developer Tools:** ${resumeData.skills.developerTools.join(', ')}\n\n**Databases:** ${resumeData.skills.databases.join(', ')}\n\n**Other Skills:** ${resumeData.skills.others.join(', ')}`
-    }
-
-    // 7. AI/ML QUERIES
-    if (lowerQuery.includes('ai') || lowerQuery.includes('artificial') || 
-        lowerQuery.includes('machine learning') || lowerQuery.includes('voyager')) {
-      const aiWork = resumeData.experience[0].highlights.find(h => h.includes('AI') || h.includes('Voyager'))
-      return `My AI experience! 🤖\n\n**AI Project at Wayfair:**\n• ${aiWork}\n\n**AI Technologies:** AI/GenAI (from my skills)\n\n**AI in Personal Projects:**\n• Used NLP in Grievance Portal\n\nI'm passionate about building practical AI solutions that solve real business problems!`
-    }
-
-    // 8. EDUCATION QUERIES
-    if (lowerQuery.includes('education') || lowerQuery.includes('study') || 
-        lowerQuery.includes('degree') || lowerQuery.includes('university') || 
-        lowerQuery.includes('college') || lowerQuery.includes('school')) {
-      return `My education! 🎓\n\n${resumeData.education.map((edu, index) => 
-        `**${index + 1}. ${edu.institution}**\n📜 Degree: ${edu.degree}\n📅 Year: ${edu.year}\n${edu.achievements ? `🏆 Achievements: ${edu.achievements.join(', ')}\n` : ''}`
-      ).join('\n')}\n**Additional Achievements:**\n${resumeData.achievements.filter(a => a.includes('School') || a.includes('Class')).map(a => `• ${a}`).join('\n')}`
-    }
-
-    // 9. CONTACT QUERIES
-    if (lowerQuery.includes('contact') || lowerQuery.includes('email') || 
-        lowerQuery.includes('reach') || lowerQuery.includes('phone') || 
-        lowerQuery.includes('linkedin') || lowerQuery.includes('github')) {
-      return `Contact me! 📞\n\n📧 **Email:** ${resumeData.email}\n📱 **Phone:** ${resumeData.phone}\n💼 **LinkedIn:** ${resumeData.linkedin}\n💻 **GitHub:** ${resumeData.github}\n📍 **Location:** ${resumeData.location}\n\nAlways happy to connect and discuss opportunities!`
-    }
-
-    // 10. PERSONAL PROJECTS ONLY
-    if (lowerQuery.includes('personal project') || lowerQuery.includes('side project') ||
-        (lowerQuery.includes('project') && !lowerQuery.includes('work') && !lowerQuery.includes('all'))) {
-      return `My personal projects! 🛠️\n\n${resumeData.projects.map((proj, index) => 
-        `**${index + 1}. ${proj.name}**\n🔧 Technologies: ${proj.technologies.join(', ')}\n📝 Description: ${proj.description}\n`
-      ).join('\n')}`
-    }
-
-    // 11. ABOUT/SUMMARY QUERIES
-    if (lowerQuery.includes('about') || lowerQuery.includes('summary') || 
-        lowerQuery.includes('tell me') || lowerQuery.includes('who are') ||
-        lowerQuery.includes('what do you do') || lowerQuery.includes('introduce')) {
-      return `About me! 👋\n\n${resumeData.summary}\n\n**Current Role:** ${resumeData.title} at ${resumeData.experience[0].company}\n**Location:** Living in ${resumeData.location}, working in ${resumeData.experience[0].location}\n\n**Quick Facts:**\n• 3+ years of experience\n• Specializing in Java & Spring Boot\n• AI enthusiast\n• Love building scalable solutions!`
-    }
-
-    // 12. ACHIEVEMENTS QUERIES
-    if (lowerQuery.includes('achievement') || lowerQuery.includes('award') || 
-        lowerQuery.includes('recognition') || lowerQuery.includes('topper')) {
-      return `My achievements! 🏆\n\n${resumeData.achievements.map(achievement => `• ${achievement}`).join('\n')}\n\nI've been consistent in academic excellence and leadership throughout my journey!`
-    }
-
-    // 13. CATCH-ALL FOR UNMATCHED QUERIES
-    console.log(`⚠️ No specific pattern matched for: "${query}"`)
-    return `Hi! I'm ${resumeData.name}, a ${resumeData.title} 👋\n\nI can tell you about:\n• **Work experience** (Wayfair, Amazon, Mobeology Communications)\n• **Technical skills** (${resumeData.skills.languages.slice(0,3).join(', ')}, etc.)\n• **All my projects** (work + personal)\n• **Education** (NIT Warangal, University of Delhi)\n• **Contact information**\n\nWhat specifically would you like to know? Try asking about any of these topics!`
+    console.log(`🤖 AI-first approach - forwarding to backend: "${query}"`)
+    
+    // Always try to use AI backend first
+    return this.generateAPIResponse(query, []).catch(error => {
+      console.log('🔄 AI backend unavailable, using simple fallback')
+      return this.generateSimpleFallback(query)
+    })
   }
 
   // Check if conversation context suggests scheduling a meeting
@@ -310,6 +421,48 @@ class AIService {
   // Clear meeting suggestion
   clearMeetingSuggestion() {
     this.lastMeetingSuggestion = null
+  }
+
+
+
+  async processResumeCustomization(jobDetails) {
+    try {
+      console.log('🚀 Processing AI-powered resume customization')
+      
+      // Show immediate feedback
+      let response = `🔄 **Processing AI-Powered Resume Customization...**\n\n`
+      response += `**Job Description:** ${jobDetails.jobDescription.length} characters\n\n`
+      response += `⏳ AI is analyzing job requirements and customizing your resume...\n\n`
+
+      // Call the resume service - let AI extract company/title from description
+      const result = await resumeService.customizeAndGeneratePDF({
+        jobDescription: jobDetails.jobDescription,
+        companyName: '',  // Let AI extract this
+        jobTitle: ''      // Let AI extract this
+      })
+
+      // Success response with download link
+      response += `✅ **AI Resume Customization Complete!**\n\n`
+      response += `🤖 **Powered by:** AI\n`
+      response += `📊 **ATS Score:** ${result.customization.data?.atsScore || 'N/A'}%\n`
+      response += `🎯 **Match Percentage:** ${result.customization.data?.matchPercentage || 'N/A'}%\n`
+      response += `📄 **File Size:** ${(result.pdf.data?.fileSize / 1024).toFixed(1)}KB\n\n`
+
+      response += `📥 **Download Your Customized Resume:**\n[📄 ${result.fileName}](${result.downloadUrl})\n\n`
+      response += `🎯 **This resume has been intelligently optimized with:**\n`
+      response += `• **AI-powered content analysis** - Deep understanding of job requirements\n`
+      response += `• **Smart skill highlighting** - Relevant experience emphasized\n`
+      response += `• **ATS-compatible formatting** - Passes automated screening\n`
+      response += `• **Professional typography** - Modern, clean design\n`
+      response += `• **Intelligent customization** - Tailored for this specific role\n\n`
+      response += `**Ready to apply with confidence!** 🚀`
+
+      return response
+
+    } catch (error) {
+      console.error('Resume customization failed:', error)
+      return `❌ **Resume customization failed:** ${error.message}\n\nPlease try again or check if the backend service is running.`
+    }
   }
 
   async checkBackendHealth() {

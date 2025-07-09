@@ -351,53 +351,53 @@ const ChatWidget = () => {
     console.log('User manually opened chat widget')
   }, [])
 
-  // Quick suggestion sections
+  // Quick suggestion sections - organized by query categories
   const quickSuggestions = [
-    { text: "Tell me about your experience at Wayfair", emoji: "💼" },
-    { text: "What AI projects have you worked on?", emoji: "🤖" },
-    { text: "Show me your technical skills", emoji: "🛠️" },
-    { text: "What did you build at Amazon?", emoji: "📦" },
-    { text: "Tell me about your education", emoji: "🎓" },
+    { text: "Tell me about your work experience", emoji: "💼" },
+    { text: "What are your technical skills?", emoji: "🛠️" },
+    { text: "I want to customize my resume for a job", emoji: "📄" },
+    { text: "Let's schedule a meeting to discuss opportunities", emoji: "📅" },
+    { text: "Show me your AI and technical projects", emoji: "🤖" },
     { text: "How can I get in touch with you?", emoji: "📧" }
   ]
 
-  // Portfolio sections for expandable cards
+  // Portfolio sections for expandable cards - enhanced with smart categorization
   const portfolioSections = [
     { 
       title: "Work Experience", 
       icon: "💼", 
-      description: "Wayfair, Amazon, and more",
-      action: "Tell me about your work experience"
+      description: "Wayfair, Amazon, Mobeology",
+      action: "Tell me about your professional experience"
     },
     { 
-      title: "AI & Tech Skills", 
+      title: "AI Resume Service", 
+      icon: "📄", 
+      description: "Smart resume customization",
+      action: "I need help customizing my resume for a job"
+    },
+    { 
+      title: "Schedule Meeting", 
+      icon: "📅", 
+      description: "Career opportunities & tech talks",
+      action: "I'd like to schedule a meeting with you"
+    },
+    { 
+      title: "Technical Skills", 
+      icon: "🛠️", 
+      description: "Java, AI/ML, Cloud, Full-stack",
+      action: "What are your technical skills and expertise?"
+    },
+    { 
+      title: "AI Projects", 
       icon: "🤖", 
-      description: "AI/ML, Java, Python, Cloud",
-      action: "What technologies do you work with?"
+      description: "AI assistants, ML systems",
+      action: "Show me your AI and machine learning projects"
     },
     { 
-      title: "Cool Projects", 
-      icon: "🚀", 
-      description: "AI assistants, web apps, systems",
-      action: "Show me some projects you've built"
-    },
-    { 
-      title: "Education", 
-      icon: "🎓", 
-      description: "NIT Warangal, class topper",
-      action: "Tell me about your educational background"
-    },
-    { 
-      title: "Get in Touch", 
+      title: "Contact Info", 
       icon: "📧", 
       description: "Email, LinkedIn, GitHub",
-      action: "How can I contact you?"
-    },
-    { 
-      title: "AI Expertise", 
-      icon: "✨", 
-      description: "Generative AI, LLMs, ML",
-      action: "What's your experience with AI and machine learning?"
+      action: "How can I get in touch with you?"
     }
   ]
 
@@ -690,7 +690,8 @@ const ChatWidget = () => {
                 fontSize: '14px',
                 lineHeight: '1.4'
               }}>
-                I'm your personal AI assistant for Himanshu's portfolio. 
+                I'm your intelligent assistant! I can help with portfolio info, 
+                schedule meetings, and customize resumes with AI.
                 {!modelStatus.isModelLoaded && (
                   <span style={{ 
                     display: 'block', 
