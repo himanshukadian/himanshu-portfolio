@@ -329,6 +329,10 @@ class AIService {
     }
   }
 
+  async customizeResume(jobDescription) {
+    return this.processResumeCustomization(jobDescription)
+  }
+
   async processResumeCustomization(jobDescription) {
     try {
       devLog('🚀 Processing AI-powered resume customization')

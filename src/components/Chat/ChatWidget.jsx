@@ -123,11 +123,47 @@ const ChatWidget = () => {
     return 'Evening'
   }
 
+  const startResumeCustomization = useCallback(async (jobDescription) => {
+    setIsLoading(true)
+    try {
+      const res = await aiService.customizeResume(jobDescription)
+      commitMessages([...messagesRef.current, {
+        id: makeMessageId(),
+        type: 'assistant',
+        content: typeof res.text === 'string' && res.text ? res.text : 'Resume customization failed — please try again.',
+        streaming: false,
+        sources: [],
+        suggestions: Array.isArray(res.suggestions) ? res.suggestions : [],
+        model: res.model || 'resume-service',
+        contextUsed: false,
+        fellback: Boolean(res.fellback),
+        timestamp: new Date()
+      }])
+    } catch (error) {
+      commitMessages([...messagesRef.current, {
+        id: makeMessageId(),
+        type: 'assistant',
+        content: `❌ **Resume customization failed:** ${error && error.message ? error.message : 'Please try again later.'}`,
+        streaming: false,
+        sources: [],
+        suggestions: ['customize my resume'],
+        model: 'resume-fallback',
+        contextUsed: false,
+        fellback: true,
+        timestamp: new Date()
+      }])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [commitMessages])
+
   const handleSendMessage = useCallback(async (messageText) => {
     const text = String(messageText || '').trim()
     if (!text || busyRef.current) return
 
-    const meetingIntent = aiService.categorizeQuery(text).category === 'meeting_scheduling'
+    const queryIntent = aiService.categorizeQuery(text)
+    const meetingIntent = queryIntent.category === 'meeting_scheduling'
+    const resumeIntent = queryIntent.category === 'resume_customization'
 
     busyRef.current = true
     setShowWelcome(false)
@@ -206,6 +242,7 @@ const ChatWidget = () => {
     }
 
     let result = null
+    let usedFallback = false
     try {
       result = await aiService.streamResponse(text, chatHistory, {
         onDelta: (accumulated) => {
@@ -222,6 +259,7 @@ const ChatWidget = () => {
         return
       }
 
+      usedFallback = true
       try {
         result = await aiService.generateResponse(text, chatHistory, { signal: controller.signal })
       } catch (jsonError) {
@@ -269,8 +307,31 @@ const ChatWidget = () => {
         answer: '',
         timestamp: new Date()
       }])
+    } else if (resumeIntent && !usedFallback) {
+      if (queryIntent.queryLength > 50) {
+        await startResumeCustomization(text)
+      } else {
+        commitMessages([...messagesRef.current, {
+          id: makeMessageId(),
+          type: 'question',
+          question: {
+            prompt: 'Which role should I tailor your resume for? Paste the job description or pick a focus.',
+            label: 'resume.target()',
+            options: [
+              { label: 'Paste job description', value: 'Paste job description' },
+              { label: 'Software Engineer / Full-stack', value: 'Software Engineer / Full-stack' },
+              { label: 'AI / ML Engineer', value: 'AI / ML Engineer' },
+              { label: 'Cloud / DevOps', value: 'Cloud / DevOps' }
+            ]
+          },
+          meta: { kind: 'resume-target' },
+          answered: false,
+          answer: '',
+          timestamp: new Date()
+        }])
+      }
     }
-  }, [commitMessages])
+  }, [commitMessages, startResumeCustomization])
 
   const handleQuickAction = useCallback((query) => {
     if (isLoading || busyRef.current) return
@@ -361,10 +422,27 @@ const ChatWidget = () => {
     }])
     if (meta && meta.kind === 'meeting-purpose') {
       startMeetingScheduler(String(value))
+    } else if (meta && meta.kind === 'resume-target') {
+      if (String(value) === 'Paste job description') {
+        commitMessages([...messagesRef.current, {
+          id: makeMessageId(),
+          type: 'assistant',
+          content: 'Great — **paste the full job description** as your next message and I\'ll tailor your resume with AI.',
+          streaming: false,
+          sources: [],
+          suggestions: [],
+          model: 'resume-fallback',
+          contextUsed: false,
+          fellback: false,
+          timestamp: new Date()
+        }])
+      } else {
+        startResumeCustomization(String(value))
+      }
     } else {
       aiService.resolveAsk(value)
     }
-  }, [commitMessages, startMeetingScheduler])
+  }, [commitMessages, startMeetingScheduler, startResumeCustomization])
 
   const handleOpen = useCallback(() => {
     setIsOpen(true)
