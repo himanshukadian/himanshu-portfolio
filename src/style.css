@@ -159,6 +159,28 @@ button:focus {
   box-shadow: none !important;
 }
 
+/* Best-practice focus: no ring on mouse clicks; styled green ring only for keyboard (:focus-visible) */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+.btn:focus:not(:focus-visible),
+.btn-primary:focus:not(:focus-visible),
+.navbar-toggler:focus:not(:focus-visible),
+.modern-nav-link:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.navbar-toggler:focus-visible,
+.modern-nav-link:focus-visible {
+  outline: 2px solid #00ff41;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 /* --------- */
 /*  Preloader */
 /* --------- */
@@ -3351,7 +3373,7 @@ section, .about-section, .project-section, .resume-section, .contact-section {
   text-transform: uppercase;
 }
 
-.modern-nav-link.active, .modern-nav-link:focus, .modern-nav-link:hover {
+.modern-nav-link.active, .modern-nav-link:focus-visible, .modern-nav-link:hover {
   color: #00ff41 !important;
 }
 
