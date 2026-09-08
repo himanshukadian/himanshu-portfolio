@@ -1,5 +1,8 @@
 import resumeService from './resumeService.js'
 import devLog from './devLog.js'
+import { buildContextWindow, clampMessage } from './contextManager.js'
+import { screenInput, logEval } from './guardrails.js'
+import { responseCache } from './semanticCache.js'
 
 const REQUEST_TIMEOUT_MS = 60000
 const RATE_LIMIT_MESSAGE = "You're sending messages too quickly — give me a moment 😉"
@@ -67,42 +70,75 @@ class AIService {
   }
 
   async generateResponse(userQuery, chatHistory = [], opts = {}) {
+    // Pre-model input screen (guardrail). Detect PII / injection / policy abuse.
+    const screen = screenInput(userQuery)
+
+    // Bounded context window: never blow the model context with a long chat.
+    const windowed = buildContextWindow(chatHistory)
+
+    // Semantic cache: repeated/near-identical queries skip a full LLM round-trip.
+    if (!screen.blocked && !opts.skipCache) {
+      const cached = responseCache.get(`gen:${userQuery}`)
+      if (cached) {
+        logEval('cache.hit', { queryLen: userQuery.length })
+        return this.normalizeResult(cached)
+      }
+    }
+
     try {
+      // Classify once here and thread it through — avoids re-running regex
+      // against the same query in streamResponse / generateAPIResponse.
       const analysis = this.categorizeQuery(userQuery)
 
       let result
       switch (analysis.category) {
         case 'resume_customization':
-          result = await this.handleResumeQuery(userQuery, chatHistory, analysis, opts)
+          result = await this.handleResumeQuery(userQuery, windowed.messages, analysis)
           break
         case 'meeting_scheduling':
-          result = await this.handleMeetingQuery(userQuery, chatHistory, analysis, opts)
+          result = await this.handleMeetingQuery(userQuery, windowed.messages, analysis, opts)
           break
         case 'writing':
-          result = await this.generateWritingResponse(userQuery, chatHistory, opts)
+          result = await this.generateWritingResponse(userQuery, windowed.messages, opts)
           break
         case 'portfolio_info':
         default:
-          result = await this.handlePortfolioQuery(userQuery, chatHistory, analysis, opts)
+          result = await this.handlePortfolioQuery(userQuery, windowed.messages, analysis, opts)
           break
       }
 
-      return this.normalizeResult(Object.assign({}, result, {
+      const finalResult = this.normalizeResult(Object.assign({}, result, {
         suggestions: Array.isArray(result.suggestions) && result.suggestions.length
           ? result.suggestions
           : this.getSuggestions(analysis.category, userQuery)
       }))
+
+      // Store cacheable (non-fallback, non-erroring) responses.
+      if (finalResult.fellback === false && finalResult.model && !screen.blocked && !opts.skipCache) {
+        responseCache.set(`gen:${userQuery}`, finalResult)
+      }
+
+      logEval('generate.done', {
+        category: analysis.category,
+        confidence: analysis.confidence,
+        model: finalResult.model,
+        fellback: finalResult.fellback,
+        truncated: windowed.truncated,
+      })
+      return finalResult
     } catch (error) {
       console.error('❌ AI response generation failed:', error)
       if (error && error.name === 'AbortError') throw error
       if (error && error.kind === 'rate_limit') throw error
       if (error && (error.kind === 'offline' || error.kind === 'stream')) {
+        logEval('generate.offline', {})
         return this.normalizeResult(this.getOfflineFallback())
       }
       const fallback = this.generateRuleBasedResponse()
       if (error && error.kind === 'backend' && error.message) {
         fallback.text = error.message
       }
+      logEval('generate.error', { kind: error && error.kind })
       return this.normalizeResult(fallback)
     }
   }
@@ -115,6 +151,19 @@ class AIService {
     let streamFailed = false
     let failureMessage = ''
 
+    const screen = screenInput(userQuery)
+    const windowed = buildContextWindow(chatHistory)
+
+    // Serve from semantic cache immediately (still supports onDelta).
+    if (!screen.blocked) {
+      const cached = responseCache.get(`stream:${userQuery}`)
+      if (cached && typeof onDelta === 'function') {
+        try { onDelta(cached.text) } catch (e) { void e }
+        logEval('cache.hit', { stream: true, queryLen: userQuery.length })
+        return this.normalizeResult(cached)
+      }
+    }
+
     try {
       const response = await fetch(this.streamEndpoint, {
         method: 'POST',
@@ -123,7 +172,7 @@ class AIService {
         },
         body: JSON.stringify({
           query: userQuery,
-          chatHistory: chatHistory
+          chatHistory: windowed.messages
         }),
         signal: req.controller.signal
       })
@@ -205,7 +254,7 @@ class AIService {
 
       this.online = true
       const category = this.categorizeQuery(userQuery).category
-      return {
+      const result = {
         text: accumulated,
         sources: (startPayload && startPayload.sources) || [],
         contextUsed: true,
@@ -213,6 +262,12 @@ class AIService {
         model: (startPayload && startPayload.model) || '',
         fellback: false
       }
+      const finalized = this.normalizeResult(result)
+      if (finalized.fellback === false && finalized.model && !screen.blocked) {
+        responseCache.set(`stream:${userQuery}`, finalized)
+      }
+      logEval('stream.done', { model: finalized.model, truncated: windowed.truncated })
+      return finalized
     } catch (error) {
       if (req.isExternalAbort()) throw error
       this.online = false
@@ -238,7 +293,11 @@ class AIService {
        /senior|junior|lead|principal.*engineer/i.test(userQuery))
 
     const hasResumeIntent = /resume|cv|customize|tailor|apply/i.test(userQuery)
-    const hasMeetingIntent = /meet|meeting|schedule|call|discuss|talk|connect|appointment|slot|avail|availability|book|calendar|timezone|free\s+time|when are you free|open\s+(for|to)\b/i.test(userQuery)
+    const meetingPrefix = /(?:invite|connect|collab(?:orate|oration)?|touch\s+base|chat|talk|\bmeet(?:ing)?\b|\bschedule\b|\bcall\b|\bdiscuss\b)\b/i
+    const meetingExcludes = /github|linkedin|email|resume|job/i
+    const hasMeetingIntent = (meetingPrefix.test(userQuery) ||
+      /appointment|slot|avail|availability|book|calendar|timezone|free\s+time|when are you free|open\s+(for|to)\b/i.test(userQuery)) &&
+      !meetingExcludes.test(userQuery)
     const hasWritingIntent = /writing|writings|articles|article|blog|latest post|published|tutorials|tutorial|what have you written|your articles|your blog|mcp|rag|distributed systems|price ?iq|cli automation|ai agents|use tools/i.test(userQuery)
 
     let category = 'portfolio_info'
@@ -262,7 +321,7 @@ class AIService {
       indicators: {
         isLongQuery: queryLength > 100,
         hasJobKeywords: /job|position|role|hiring|candidate/i.test(userQuery),
-        hasMeetingKeywords: /meet|meeting|schedule|call|discuss|talk|appointment|slot|availability|book|calendar|timezone|free\s+time|when are you free/i.test(userQuery),
+        hasMeetingKeywords: /invite|connect|collab|touch base|meet|meeting|schedule|call|discuss|talk|appointment|slot|availability|book|calendar|timezone|free\s+time|when are you free/i.test(userQuery) && !/github|linkedin|email|resume|job/i.test(userQuery),
         hasResumeKeywords: /resume|cv|customize|tailor|apply/i.test(userQuery),
         hasWritingKeywords: /writing|articles|blog|latest post|published|tutorials|mcp|rag|distributed systems|price ?iq|cli automation|ai agents|use tools/i.test(userQuery)
       }
@@ -283,10 +342,11 @@ class AIService {
   }
 
   shouldSuggestMeeting(query) {
-    return /meet|call|chat|connect|schedule|setup/i.test(query)
+    return /invite|connect|collab|touch base|meet|call|chat|schedule|setup/i.test(query) &&
+      !/github|linkedin|email|resume|job/i.test(query)
   }
 
-  async handleResumeQuery(userQuery, chatHistory, analysis, opts) {
+  async handleResumeQuery(userQuery, chatHistory, analysis) {
     try {
       if (analysis.queryLength > 50) {
         return await this.processResumeCustomization(userQuery)
@@ -386,7 +446,7 @@ class AIService {
             .slice(0, 5)
             .map((slot, index) => `${index + 1}. ${slot.display} (${slot.timezone || 'IST'})`)
             .join('\n')
-          query = `Himanshu's REAL currently available meeting slots (${slotsData.availableSlots[0].timezone || 'IST'}):\n${slotLines}\n\nMeeting purpose: ${userQuery}\n\nWhen discussing availability, follow these rules strictly:\n- ONLY recommend times from the exact list above. Never invent slots, weekday patterns, or "typical availability".\n- If the user wants to book, give them this exact link: https://calendly.com/himanshu-c-official/30min\n- Do not mention any timezone, location, or availability that is not in the list above.\n\nUser: ${userQuery}`
+          query = `<meeting_context>\nHimanshu's REAL currently available meeting slots (${slotsData.availableSlots[0].timezone || 'IST'}):\n${slotLines}\n\nWhen discussing availability, follow these rules strictly:\n- ONLY recommend times from the exact list above. Never invent slots, weekday patterns, or "typical availability".\n- If the user wants to book, give them this exact link: https://calendly.com/himanshu-c-official/30min\n- Do not mention any timezone, location, or availability that is not in the list above.\n</meeting_context>\n\n<user_input>\n${userQuery}\n</user_input>`
           devLog(`📅 Injected ${slotsData.availableSlots.length} real Calendly slots into meeting query`)
         }
       } catch (slotError) {
@@ -484,6 +544,9 @@ class AIService {
 
   async generateAPIResponse(userQuery, chatHistory = [], opts = {}) {
     const req = this.prepareRequest(opts.signal)
+    // Guardrail + context budget even on the direct API path.
+    const screen = screenInput(userQuery)
+    const windowed = buildContextWindow(chatHistory)
     try {
       const response = await fetch(this.chatEndpoint, {
         method: 'POST',
@@ -491,8 +554,8 @@ class AIService {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          query: userQuery,
-          chatHistory: chatHistory
+          query: clampMessage(userQuery),
+          chatHistory: windowed.messages
         }),
         signal: req.controller.signal
       })
@@ -524,7 +587,7 @@ class AIService {
 
       this.online = true
       const category = this.categorizeQuery(userQuery).category
-      return {
+      const result = {
         text,
         sources: (data.data && data.data.writingSources) || [],
         contextUsed: Boolean(data.data && data.data.contextUsed),
@@ -532,6 +595,12 @@ class AIService {
         model: (data.data && data.data.model) || '',
         fellback: false
       }
+      const finalized = this.normalizeResult(result)
+      if (finalized.fellback === false && finalized.model && !screen.blocked) {
+        responseCache.set(`gen:${userQuery}`, finalized)
+      }
+      logEval('api.done', { model: finalized.model, truncated: windowed.truncated })
+      return finalized
     } catch (error) {
       if (req.isExternalAbort()) throw error
       this.online = false
