@@ -377,6 +377,14 @@ const SchedulingWidget = ({
                     {formatDateTime(scheduledMeeting.scheduledTime)}
                   </div>
                 </div>
+                {scheduledMeeting.meetingLink && (
+                  <div className="mt-3">
+                    <strong>Meeting Link:</strong><br />
+                    <a href={scheduledMeeting.meetingLink} target="_blank" rel="noreferrer">
+                      {scheduledMeeting.meetingLink}
+                    </a>
+                  </div>
+                )}
               </Card.Body>
             </Card>
 

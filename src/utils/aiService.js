@@ -318,7 +318,25 @@ class AIService {
   async handleMeetingQuery(userQuery, chatHistory, analysis, opts) {
     try {
       devLog('📅 Processing meeting request with AI')
-      return await this.generateAPIResponse(userQuery, chatHistory, opts)
+
+      let query = userQuery
+      try {
+        const slotPromise = this.getAvailableSlots('general')
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('slots timeout')), 8000))
+        const slotsData = await Promise.race([slotPromise, timeoutPromise])
+        if (slotsData && slotsData.configured && Array.isArray(slotsData.availableSlots) && slotsData.availableSlots.length > 0) {
+          const slotLines = slotsData.availableSlots
+            .slice(0, 5)
+            .map((slot, index) => `${index + 1}. ${slot.display} (${slot.timezone || 'IST'})`)
+            .join('\n')
+          query = `Himanshu's REAL currently available meeting slots (IST):\n${slotLines}\n\nIf the user wants to book, suggest one of these exact times.\n\nUser: ${userQuery}`
+          devLog(`📅 Injected ${slotsData.availableSlots.length} real Calendly slots into meeting query`)
+        }
+      } catch (slotError) {
+        devLog('📅 Slot fetch failed, using plain meeting query')
+      }
+
+      return await this.generateAPIResponse(query, chatHistory, opts)
     } catch (error) {
       devLog('🔄 AI failed for meeting query, using meeting fallback')
       return {
