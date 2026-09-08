@@ -45,7 +45,7 @@ const ChatWidget = () => {
     return []
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [showWelcome, setShowWelcome] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(() => { return messagesRef.current.length === 0 })
   const [expandedSection, setExpandedSection] = useState(null)
   const [error, setError] = useState(null)
   const [aiOnline, setAiOnline] = useState(() => aiService.getOnline())
@@ -95,14 +95,22 @@ const ChatWidget = () => {
     }
   }, [messages])
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({
-        behavior: 'smooth',
+        behavior,
         block: 'end'
       })
     }
   }, [])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const container = messagesEndRef.current && messagesEndRef.current.parentElement
+    if (container) {
+      container.scrollTop = container.scrollHeight
+    }
+  }, [isOpen])
 
   useEffect(() => {
     scrollToBottom()
