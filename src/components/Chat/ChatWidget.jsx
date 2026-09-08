@@ -290,10 +290,14 @@ const ChatWidget = () => {
   }, [])
 
   const handleMeetingScheduled = useCallback((meetingData) => {
+    const isReal = meetingData && meetingData.strategy === 'calendly'
+    const content = isReal
+      ? `📅 **Meeting scheduled!** ${meetingData.meetingId} — ${new Date(meetingData.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${meetingData.meetingLink ? `\n\n🔗 ${meetingData.meetingLink}` : ''}`
+      : `📅 **Booking request received!** (pending confirmation) — ${new Date(meetingData && meetingData.scheduledTime ? meetingData.scheduledTime : Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}.\n\nI'll confirm your slot by email shortly.`
     const summary = {
       id: makeMessageId(),
       type: 'assistant',
-      content: `📅 **Meeting scheduled!** ${meetingData.meetingId} — ${new Date(meetingData.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${meetingData.meetingLink ? `\n\n🔗 ${meetingData.meetingLink}` : ''}`,
+      content,
       streaming: false,
       sources: [],
       suggestions: [],

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FaCalendarAlt, FaCheck, FaEnvelope } from 'react-icons/fa'
+import { FaCalendarAlt, FaCheck, FaEnvelope, FaClock } from 'react-icons/fa'
 
 const MONO = "'Fira Code', monospace"
 const GREEN = '#00ff41'
@@ -415,11 +415,11 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
           {/* Step: confirmation */}
           {currentStep === 'confirmation' && scheduledMeeting && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ color: GREEN, fontSize: '28px' }}>
-                <FaCheck />
+              <div style={{ color: scheduledMeeting.strategy === 'calendly' ? GREEN : '#ffb020', fontSize: '28px' }}>
+                {scheduledMeeting.strategy === 'calendly' ? <FaCheck /> : <FaClock />}
               </div>
-              <h4 style={{ color: GREEN, fontSize: '14px', margin: '12px 0 16px 0', fontFamily: MONO }}>
-                {'>'} meeting.scheduled()
+              <h4 style={{ color: scheduledMeeting.strategy === 'calendly' ? GREEN : '#ffb020', fontSize: '14px', margin: '12px 0 16px 0', fontFamily: MONO }}>
+                {'>'} {scheduledMeeting.strategy === 'calendly' ? 'meeting.scheduled()' : 'booking.requested()'}
               </h4>
 
               <div style={{
@@ -432,12 +432,12 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                 fontFamily: MONO
               }}>
                 <div style={{ fontSize: '11px', marginBottom: '4px' }}>
-                  <span style={{ color: FAINT }}>id:</span> <span style={{ color: DIM }}>{scheduledMeeting.meetingId}</span>
+                  <span style={{ color: FAINT }}>id:</span> <span style={{ color: DIM }}>{scheduledMeeting.meetingId || 'pending'}</span>
                 </div>
                 <div style={{ fontSize: '11px', marginBottom: '4px' }}>
                   <span style={{ color: FAINT }}>time:</span> <span style={{ color: DIM }}>{formatDateTime(scheduledMeeting.scheduledTime)}</span>
                 </div>
-                {scheduledMeeting.meetingLink && (
+                {scheduledMeeting.strategy === 'calendly' && scheduledMeeting.meetingLink && (
                   <div style={{ fontSize: '11px' }}>
                     <span style={{ color: FAINT }}>link:</span>{' '}
                     <a
@@ -450,10 +450,16 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                     </a>
                   </div>
                 )}
+                {scheduledMeeting.strategy !== 'calendly' && (
+                  <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                    <span style={{ color: FAINT }}>status:</span>{' '}
+                    <span style={{ color: '#ffb020' }}>pending confirmation — real link will follow by email</span>
+                  </div>
+                )}
               </div>
 
               <p style={{ color: DIM, fontSize: '11px', margin: '0 0 14px 0', fontFamily: MONO }}>
-                {'>'} confirmation email on its way
+                {'>'} {scheduledMeeting.strategy === 'calendly' ? 'confirmation email on its way' : 'request received — I\'ll confirm shortly'}
               </p>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
