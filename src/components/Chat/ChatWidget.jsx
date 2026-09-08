@@ -4,6 +4,21 @@ import MessageInput from './MessageInput'
 import SchedulingWidget from './SchedulingWidget'
 import { aiService } from '../../utils/aiService'
 
+const MONO = "'Fira Code', monospace"
+const GREEN = '#00ff41'
+const DIM = 'rgba(255,255,255,0.5)'
+const FAINT = 'rgba(255,255,255,0.3)'
+const BORDER = 'rgba(0,255,65,0.25)'
+const BORDER_DIM = 'rgba(0,255,65,0.12)'
+
+// Session management keys
+const SESSION_KEYS = {
+  AUTO_OPENED: 'chatWidget_autoOpened',
+  LAST_SESSION: 'chatWidget_lastSession',
+  USER_CLOSED: 'chatWidget_userClosed',
+  CHAT_HISTORY: 'chatWidget_chatHistory'
+}
+
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState([])
@@ -11,62 +26,30 @@ const ChatWidget = () => {
   const [showWelcome, setShowWelcome] = useState(true)
   const [expandedSection, setExpandedSection] = useState(null)
   const [hasAutoOpened, setHasAutoOpened] = useState(false)
-  const [isAutoOpening, setIsAutoOpening] = useState(false)
   const [userHasClosed, setUserHasClosed] = useState(false)
   const [error, setError] = useState(null)
   const [modelStatus, setModelStatus] = useState(aiService.getModelStatus())
-  const [instantMode] = useState(true) // Always use instant mode
   const [showScheduling, setShowScheduling] = useState(false)
   const [meetingSuggestion, setMeetingSuggestion] = useState(null)
   const messagesEndRef = useRef(null)
   const autoOpenTimerRef = useRef(null)
   const responseTimerRef = useRef(null)
 
-  // Use the same color scheme as the main portfolio (CSS variables)
+  // Terminal color scheme
   const getColors = () => {
-    const computedStyle = getComputedStyle(document.documentElement)
     return {
-      textPrimary: computedStyle.getPropertyValue('--text-primary').trim() || '#232946',
-      textSecondary: computedStyle.getPropertyValue('--text-secondary').trim() || '#666',
-      bgPrimary: computedStyle.getPropertyValue('--bg-primary').trim() || '#f8f9fa',
-      bgSecondary: computedStyle.getPropertyValue('--bg-secondary').trim() || '#fff',
-      cardBg: computedStyle.getPropertyValue('--card-bg').trim() || '#fff',
-      cardBorder: computedStyle.getPropertyValue('--card-border').trim() || '#e0e0e0',
-      primaryColor: computedStyle.getPropertyValue('--primary-color').trim() || '#00e6fe',
-      secondaryColor: computedStyle.getPropertyValue('--secondary-color').trim() || '#2563ff'
+      textPrimary: '#ffffff',
+      textSecondary: DIM,
+      bgPrimary: '#000000',
+      bgSecondary: '#0a0a0a',
+      cardBg: 'rgba(0,255,65,0.04)',
+      cardBorder: BORDER,
+      primaryColor: GREEN,
+      secondaryColor: GREEN
     }
   }
 
-  const [colors, setColors] = useState(getColors())
-
-  // Update colors when theme changes
-  useEffect(() => {
-    const updateColors = () => {
-      setColors(getColors())
-    }
-
-    // Listen for theme changes
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
-          updateColors()
-        }
-      })
-    })
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    })
-
-    // Also listen for CSS custom property changes
-    window.addEventListener('themechange', updateColors)
-
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('themechange', updateColors)
-    }
-  }, [])
+  const colors = getColors()
 
   // Monitor AI model status
   useEffect(() => {
@@ -74,24 +57,14 @@ const ChatWidget = () => {
       setModelStatus(aiService.getModelStatus())
     }
 
-    // Update status every 2 seconds while model is loading
     const statusInterval = setInterval(updateModelStatus, 2000)
 
-    // Stop checking once model is loaded
     if (modelStatus.isModelLoaded || modelStatus.fallbackToRules) {
       clearInterval(statusInterval)
     }
 
     return () => clearInterval(statusInterval)
   }, [modelStatus.isLoading])
-
-  // Session management keys
-  const SESSION_KEYS = {
-    AUTO_OPENED: 'chatWidget_autoOpened',
-    LAST_SESSION: 'chatWidget_lastSession',
-    USER_CLOSED: 'chatWidget_userClosed', // Track if user closed in current session
-    CHAT_HISTORY: 'chatWidget_chatHistory' // Store chat messages
-  }
 
   // Load chat history from sessionStorage on component mount
   useEffect(() => {
@@ -100,7 +73,6 @@ const ChatWidget = () => {
       if (savedHistory) {
         const parsedHistory = JSON.parse(savedHistory)
         setMessages(parsedHistory)
-        console.log('💾 Loaded chat history:', parsedHistory.length, 'messages')
       }
     } catch (error) {
       console.error('Error loading chat history:', error)
@@ -112,7 +84,6 @@ const ChatWidget = () => {
     if (messages.length > 0) {
       try {
         sessionStorage.setItem(SESSION_KEYS.CHAT_HISTORY, JSON.stringify(messages))
-        console.log('💾 Saved chat history:', messages.length, 'messages')
       } catch (error) {
         console.error('Error saving chat history:', error)
       }
@@ -122,7 +93,7 @@ const ChatWidget = () => {
   // Smooth scroll to bottom
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
+      messagesEndRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'end'
       })
@@ -135,7 +106,6 @@ const ChatWidget = () => {
 
   // Session management for auto-open
   useEffect(() => {
-    // Add global function for testing (only in development)
     if (process.env.NODE_ENV === 'development') {
       window.resetChatWidget = () => {
         localStorage.removeItem(SESSION_KEYS.AUTO_OPENED)
@@ -155,67 +125,10 @@ const ChatWidget = () => {
         console.log('Chat history cleared!')
       }
     }
-    
+
     try {
-      const lastSession = localStorage.getItem(SESSION_KEYS.LAST_SESSION)
-      const autoOpened = localStorage.getItem(SESSION_KEYS.AUTO_OPENED)
-      const userClosed = localStorage.getItem(SESSION_KEYS.USER_CLOSED)
-      const now = Date.now()
-      const oneDay = 24 * 60 * 60 * 1000 // 24 hours
-      
-      // Development mode - always auto-open for testing
-      const isDevelopment = process.env.NODE_ENV === 'development'
-      
-      console.log('Chat Widget Auto-Open Debug:', {
-        lastSession,
-        autoOpened,
-        userClosed,
-        hasAutoOpened,
-        userHasClosed,
-        isDevelopment
-      })
-
-      // Reset flags if it's been more than 24 hours OR in development mode
-      if (lastSession && (now - parseInt(lastSession)) > oneDay || isDevelopment) {
-        localStorage.removeItem(SESSION_KEYS.AUTO_OPENED)
-        localStorage.removeItem(SESSION_KEYS.USER_CLOSED)
-        localStorage.setItem(SESSION_KEYS.LAST_SESSION, now.toString())
-        console.log('Auto-open flags reset')
-      } else if (!lastSession) {
-        localStorage.setItem(SESSION_KEYS.LAST_SESSION, now.toString())
-      }
-
-      // Set userHasClosed state from localStorage
-      if (userClosed === 'true' && !isDevelopment) {
-        setUserHasClosed(true)
-      }
-
-      // Check if we should auto-open
-      // Don't auto-open if: user has closed it, already auto-opened (and not in dev mode)
-      const shouldAutoOpen = !userHasClosed && 
-                             !userClosed && 
-                             (isDevelopment || (!autoOpened && !hasAutoOpened))
-      
-      if (shouldAutoOpen) {
-        console.log('Starting auto-open timer (3 seconds)...')
-        autoOpenTimerRef.current = setTimeout(() => {
-          console.log('Auto-opening chat widget...')
-          setIsAutoOpening(true)
-          setTimeout(() => {
-            setIsOpen(true)
-            setHasAutoOpened(true)
-            setIsAutoOpening(false)
-            if (!isDevelopment) {
-              localStorage.setItem(SESSION_KEYS.AUTO_OPENED, 'true')
-            }
-            console.log('Chat widget auto-opened successfully')
-          }, 200)
-        }, 3000) // 3 seconds
-      } else {
-        const reason = userHasClosed || userClosed ? 'user manually closed it' : 'already opened in this session'
-        console.log(`Auto-open skipped - ${reason}`)
-        setHasAutoOpened(true)
-      }
+      // Auto-open is disabled - let users discover the chat organically
+      setHasAutoOpened(true)
     } catch (error) {
       console.error('Session management error:', error)
       setHasAutoOpened(true)
@@ -250,7 +163,7 @@ const ChatWidget = () => {
 
     try {
       setError(null)
-      
+
       // If this is the first interaction, just hide the welcome screen
       if (showWelcome) {
         setShowWelcome(false)
@@ -277,7 +190,7 @@ const ChatWidget = () => {
         // Get current messages for context (excluding the user message we just added)
         const currentMessages = [...messages, userMessage]
         const response = await aiService.generateResponse(messageText, currentMessages)
-        
+
         // Check if there's a meeting suggestion
         const suggestion = aiService.getLastMeetingSuggestion()
         if (suggestion && suggestion.shouldSuggest) {
@@ -287,12 +200,17 @@ const ChatWidget = () => {
             setShowScheduling(true)
           }, 1000)
         }
-        
+
         const assistantMessage = {
           id: Date.now() + 1,
           type: 'assistant',
           content: response,
           timestamp: new Date()
+        }
+
+        const writingSources = aiService.getLastWritingSources()
+        if (Array.isArray(writingSources) && writingSources.length > 0) {
+          assistantMessage.sources = writingSources
         }
 
         setMessages(prev => [...prev, assistantMessage])
@@ -328,74 +246,69 @@ const ChatWidget = () => {
     setIsOpen(false)
     setError(null)
     setUserHasClosed(true)
-    
-    // Save to localStorage so it persists across page refreshes
-    // Only save in non-development mode
+
     if (process.env.NODE_ENV !== 'development') {
       localStorage.setItem(SESSION_KEYS.USER_CLOSED, 'true')
     }
-    
-    console.log('User manually closed chat widget - will not auto-open again today')
   }, [])
 
   const handleOpen = useCallback(() => {
     setIsOpen(true)
     setError(null)
-    setUserHasClosed(false) // Reset the closed flag since user is opening it manually
-    
-    // Clear the userClosed flag from localStorage
+    setUserHasClosed(false)
+
     if (process.env.NODE_ENV !== 'development') {
       localStorage.removeItem(SESSION_KEYS.USER_CLOSED)
     }
-    
-    console.log('User manually opened chat widget')
   }, [])
 
   // Quick suggestion sections - organized by query categories
   const quickSuggestions = [
-    { text: "Tell me about your work experience", emoji: "💼" },
-    { text: "What are your technical skills?", emoji: "🛠️" },
-    { text: "I want to customize my resume for a job", emoji: "📄" },
-    { text: "Let's schedule a meeting to discuss opportunities", emoji: "📅" },
-    { text: "Show me your AI and technical projects", emoji: "🤖" },
-    { text: "How can I get in touch with you?", emoji: "📧" }
+    { text: "Tell me about your work experience", emoji: "" },
+    { text: "What are your technical skills?", emoji: "" },
+    { text: "I want to customize my resume for a job", emoji: "" },
+    { text: "Let's schedule a meeting to discuss opportunities", emoji: "" },
+    { text: "Show me your AI and technical projects", emoji: "" },
+    { text: "How can I get in touch with you?", emoji: "" },
+    { text: "Summarize your latest blog article", emoji: "" },
+    { text: "What are your writing and articles about?", emoji: "" }
   ]
 
   // Portfolio sections for expandable cards - enhanced with smart categorization
   const portfolioSections = [
-    { 
-      title: "Work Experience", 
-      icon: "💼", 
+    {
+      title: "Work Experience",
+      icon: "[]",
       description: "Wayfair, Amazon, Mobeology",
       action: "Tell me about your professional experience"
     },
-    { 
-      title: "AI Resume Service", 
-      icon: "📄", 
+    {
+      title: "AI Resume Service",
+      icon: "#",
       description: "Smart resume customization",
       action: "I need help customizing my resume for a job"
     },
-    { 
-      title: "Schedule Meeting", 
-      icon: "📅", 
+    {
+      title: "Schedule Meeting",
+      icon: "&",
       description: "Career opportunities & tech talks",
       action: "I'd like to schedule a meeting with you"
     },
-    { 
-      title: "Technical Skills", 
-      icon: "🛠️", 
+    {
+      title: "Technical Skills",
+      icon: "{}",
       description: "Java, AI/ML, Cloud, Full-stack",
       action: "What are your technical skills and expertise?"
     },
-    { 
-      title: "AI Projects", 
-      icon: "🤖", 
+    {
+      title: "AI Projects",
+      icon: "$",
       description: "AI assistants, ML systems",
       action: "Show me your AI and machine learning projects"
     },
-    { 
-      title: "Contact Info", 
-      icon: "📧", 
+    {
+      title: "Contact Info",
+      icon: "@",
       description: "Email, LinkedIn, GitHub",
       action: "How can I get in touch with you?"
     }
@@ -407,45 +320,51 @@ const ChatWidget = () => {
         position: 'fixed',
         bottom: '20px',
         right: '20px',
-        zIndex: 1000
+        zIndex: 10002
       }}>
         <button
           onClick={handleOpen}
           className="chat-widget-fab"
           style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${colors.primaryColor}, ${colors.secondaryColor})`,
-            border: 'none',
-            boxShadow: isAutoOpening 
-              ? `0 0 20px ${colors.primaryColor}66, 0 0 40px ${colors.secondaryColor}66` 
-              : '0 4px 20px rgba(0,0,0,0.15)',
+            borderRadius: '4px',
+            background: 'rgba(0,0,0,0.9)',
+            border: `1px solid ${BORDER}`,
+            boxShadow: '0 0 16px rgba(0,255,65,0.12)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.3s ease',
-            color: '#fff',
-            fontSize: '24px',
-            animation: isAutoOpening ? 'chatPulse 1s ease-in-out infinite' : 'none'
+            gap: '8px',
+            padding: '10px 16px',
+            transition: 'all 0.2s ease',
+            color: GREEN,
+            fontSize: '13px',
+            fontWeight: 400,
+            fontFamily: MONO,
+            letterSpacing: '0.5px',
+            whiteSpace: 'nowrap',
           }}
           onMouseEnter={(e) => {
-            if (!isAutoOpening) {
-              e.target.style.transform = 'scale(1.1)'
-              e.target.style.boxShadow = '0 6px 25px rgba(0,0,0,0.2)'
-            }
+            e.currentTarget.style.background = 'rgba(0,255,65,0.08)'
+            e.currentTarget.style.borderColor = GREEN
+            e.currentTarget.style.boxShadow = '0 0 20px rgba(0,255,65,0.25)'
           }}
           onMouseLeave={(e) => {
-            if (!isAutoOpening) {
-              e.target.style.transform = 'scale(1)'
-              e.target.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)'
-            }
+            e.currentTarget.style.background = 'rgba(0,0,0,0.9)'
+            e.currentTarget.style.borderColor = BORDER
+            e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,65,0.12)'
           }}
-          title="Open Chat Assistant"
-          aria-label="Open Chat Assistant"
+          title="Open H.A.L.O."
+          aria-label="Open H.A.L.O."
         >
-          💬
+          <span style={{ fontSize: '13px', lineHeight: 1, color: GREEN }}>{'>'}</span>
+          Ask H.A.L.O.
+          <span style={{
+            display: 'inline-block',
+            width: '6px',
+            height: '12px',
+            background: GREEN,
+            animation: 'cursorBlink 1s infinite'
+          }} />
         </button>
       </div>
     )
@@ -458,210 +377,146 @@ const ChatWidget = () => {
       right: '20px',
       width: '380px',
       height: '600px',
-      background: colors.cardBg,
-      borderRadius: '16px',
-      boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-      border: `1px solid ${colors.cardBorder}`,
-      zIndex: 1000,
+      background: '#000000',
+      borderRadius: '4px',
+      boxShadow: '0 10px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,65,0.15)',
+      border: `1px solid ${BORDER}`,
+      zIndex: 10002,
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      fontFamily: "'Inter', 'Poppins', Arial, sans-serif"
+      fontFamily: MONO
     }}>
       {/* Header */}
       <div className="chat-widget-header" style={{
-        background: `linear-gradient(135deg, ${colors.primaryColor}, ${colors.secondaryColor})`,
+        background: '#000000',
         color: '#fff',
-        padding: '16px',
+        padding: '12px 16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexShrink: 0,
-        position: 'relative',
-        overflow: 'hidden'
+        borderBottom: `1px solid ${BORDER}`
       }}>
-        {/* Background overlay for better text contrast */}
+        {/* Title dots */}
         <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.1)',
-          zIndex: 0
-        }} />
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 1 }}>
+          display: 'flex',
+          gap: '6px',
+          alignItems: 'center',
+          paddingRight: '12px'
+        }}>
+          <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'rgba(0,255,65,0.5)' }} />
+          <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'rgba(0,255,65,0.25)' }} />
+          <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'rgba(0,255,65,0.12)' }} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
           <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.2)',
+            width: '30px',
+            height: '30px',
+            border: `1px solid ${BORDER}`,
+            borderRadius: '4px',
+            background: 'rgba(0,255,65,0.06)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '20px',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.3)'
+            fontSize: '15px',
+            color: GREEN,
+            flexShrink: 0
           }}>
-            🤖
+            {'~'}
           </div>
-          <div>
-            <h3 style={{ 
-              margin: '0', 
-              fontSize: '16px', 
-              fontWeight: '700', 
-              color: '#fff',
-              fontFamily: "'Inter', 'Poppins', Arial, sans-serif",
-              letterSpacing: '0.5px',
-              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-              background: 'linear-gradient(90deg, #fff, rgba(255,255,255,0.9))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{
+              margin: '0',
+              fontSize: '13px',
+              fontWeight: 400,
+              color: GREEN,
+              fontFamily: MONO,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}>
-              {modelStatus.isLoading ? 'AI Loading...' : 'Ask Portfolio'}
-              {modelStatus.isModelLoaded && !modelStatus.fallbackToRules && (
-                <span style={{ fontSize: '10px', marginLeft: '4px' }}>✨</span>
-              )}
+              {'>'} assistant.ask()
             </h3>
-            <p style={{ 
-              margin: '0', 
-              fontSize: '12px', 
-              opacity: '0.95',
-              color: 'rgba(255,255,255,0.9)',
-              fontFamily: "'Inter', 'Poppins', Arial, sans-serif",
-              fontWeight: '500',
-              letterSpacing: '0.3px',
-              textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+            <p style={{
+              margin: '0',
+              fontSize: '11px',
+              color: modelStatus.isModelLoaded && !modelStatus.fallbackToRules ? GREEN : DIM,
+              fontFamily: MONO,
+              whiteSpace: 'nowrap'
             }}>
-              {modelStatus.isModelLoaded && !modelStatus.fallbackToRules
-                ? `✨ AI-Powered`
-                : 'Himanshu\'s Assistant'
-              }
+              {modelStatus.isLoading
+                ? 'loading model...'
+                : modelStatus.isModelLoaded && !modelStatus.fallbackToRules
+                  ? '● ai.online'
+                  : '● ai.ready (rules mode)'}
             </p>
           </div>
         </div>
-        {/* AI Mode Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 1 }}>
-          <label style={{ color: '#fff', fontSize: '12px', fontWeight: 500, marginRight: '4px' }}>Mode:</label>
-          <button
-            onClick={() => {
-              aiService.setRuleBasedMode();
-              setModelStatus({ ...aiService.getModelStatus() });
-            }}
-            style={{
-              background: modelStatus.fallbackToRules ? colors.primaryColor : 'rgba(255,255,255,0.15)',
-              color: modelStatus.fallbackToRules ? '#fff' : '#eee',
-              border: 'none',
-              borderRadius: '6px 0 0 6px',
-              padding: '4px 10px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px',
-              outline: 'none',
-              transition: 'all 0.2s',
-              opacity: 1
-            }}
-            disabled={modelStatus.fallbackToRules}
-            title="Use rule-based responses only"
-          >
-            Rules
-          </button>
-          <button
-            onClick={() => {
-              aiService.setMistralAPIMode();
-              setModelStatus({ ...aiService.getModelStatus() });
-            }}
-            style={{
-              background: !modelStatus.fallbackToRules ? colors.primaryColor : 'rgba(255,255,255,0.15)',
-              color: !modelStatus.fallbackToRules ? '#fff' : '#eee',
-              border: 'none',
-              borderRadius: '0 6px 6px 0',
-              padding: '4px 10px',
-              cursor: modelStatus.isModelLoaded ? 'pointer' : 'not-allowed',
-              fontWeight: 600,
-              fontSize: '12px',
-              outline: 'none',
-              transition: 'all 0.2s',
-              opacity: modelStatus.isModelLoaded ? 1 : 0.5
-            }}
-            disabled={!modelStatus.isModelLoaded || !modelStatus.fallbackToRules}
-            title={modelStatus.isModelLoaded ? "Use AI responses" : "AI not available (missing API key)"}
-          >
-            AI
-          </button>
-        </div>
-        
+
         <button
           onClick={handleClose}
           style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: '#fff',
-            fontSize: '18px',
+            background: 'transparent',
+            border: `1px solid ${BORDER_DIM}`,
+            borderRadius: '4px',
+            color: DIM,
+            fontSize: '14px',
             cursor: 'pointer',
-            padding: '6px',
-            borderRadius: '8px',
-            opacity: '0.9',
+            padding: '2px 8px',
             transition: 'all 0.2s ease',
-            backdropFilter: 'blur(10px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: '32px',
-            minHeight: '32px',
-            position: 'relative',
-            zIndex: 1
+            fontFamily: MONO
           }}
           onMouseEnter={(e) => {
-            e.target.style.opacity = '1'
-            e.target.style.background = 'rgba(255,255,255,0.3)'
-            e.target.style.transform = 'scale(1.05)'
+            e.target.style.color = '#ff5f56'
+            e.target.style.borderColor = 'rgba(255,95,86,0.4)'
           }}
           onMouseLeave={(e) => {
-            e.target.style.opacity = '0.9'
-            e.target.style.background = 'rgba(255,255,255,0.2)'
-            e.target.style.transform = 'scale(1)'
+            e.target.style.color = DIM
+            e.target.style.borderColor = BORDER_DIM
           }}
           title="Close Chat"
           aria-label="Close Chat"
         >
-          ✕
+          [x]
         </button>
       </div>
 
       {/* Error Display */}
       {error && (
         <div style={{
-          background: '#ff4444',
-          color: '#fff',
+          background: 'rgba(255,0,0,0.08)',
+          color: '#ff5f56',
           padding: '8px 16px',
           fontSize: '12px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          borderBottom: '1px solid rgba(255,0,0,0.25)',
+          fontFamily: MONO
         }}>
-          <span>{error}</span>
+          <span>{'>'} error: {error}</span>
           <button
             onClick={() => setError(null)}
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#fff',
+              color: '#ff5f56',
               cursor: 'pointer',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontFamily: MONO
             }}
           >
-            ✕
+            [x]
           </button>
         </div>
       )}
 
       {/* Content */}
-      <div style={{ 
-        flex: '1', 
-        display: 'flex', 
+      <div style={{
+        flex: '1',
+        display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         minHeight: 0
@@ -670,92 +525,96 @@ const ChatWidget = () => {
           /* Welcome Screen */
           <div className="chat-widget-content" style={{
             flex: '1',
-            padding: '20px',
+            padding: '18px 16px',
             overflowY: 'auto',
-            background: colors.bgPrimary,
+            background: '#000000',
             WebkitOverflowScrolling: 'touch'
           }}>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ 
-                fontSize: '20px', 
-                fontWeight: '600', 
-                color: colors.textPrimary, 
-                margin: '0 0 8px 0' 
+            <div style={{ marginBottom: '18px' }}>
+              <h2 style={{
+                fontSize: '16px',
+                fontWeight: 400,
+                color: GREEN,
+                margin: '0 0 8px 0',
+                fontFamily: MONO
               }}>
-                Good {getGreeting()}
+                {'>'} Good {getGreeting()}._
               </h2>
-              <p style={{ 
-                color: colors.textSecondary, 
-                margin: '0', 
-                fontSize: '14px',
-                lineHeight: '1.4'
+              <p style={{
+                color: DIM,
+                margin: '0',
+                fontSize: '12px',
+                lineHeight: '1.6',
+                fontFamily: MONO
               }}>
-                I'm your intelligent assistant! I can help with portfolio info, 
-                schedule meetings, and customize resumes with AI.
+                {'>'} I can help with portfolio info, schedule meetings, and customize resumes with AI.
                 {!modelStatus.isModelLoaded && (
-                  <span style={{ 
-                    display: 'block', 
-                    marginTop: '4px', 
-                    color: colors.primaryColor,
-                    fontSize: '12px'
+                  <span style={{
+                    display: 'block',
+                    marginTop: '6px',
+                    color: GREEN,
+                    fontSize: '11px'
                   }}>
-                    🤖 Loading advanced AI models in background...
+                    {'>'} loading advanced AI model in background...
                   </span>
                 )}
                 {modelStatus.isModelLoaded && !modelStatus.fallbackToRules && (
-                  <span style={{ 
-                    display: 'block', 
-                    marginTop: '4px', 
-                    color: colors.primaryColor,
-                    fontSize: '12px'
+                  <span style={{
+                    display: 'block',
+                    marginTop: '6px',
+                    color: GREEN,
+                    fontSize: '11px'
                   }}>
-                    ✨ AI-powered responses active!
+                    {'>'} ai model loaded — responses active
                   </span>
                 )}
               </p>
             </div>
 
             {/* Quick Suggestions */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ 
-                fontSize: '14px', 
-                fontWeight: '600', 
-                color: colors.textSecondary, 
-                margin: '0 0 12px 0',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{
+                fontSize: '11px',
+                fontWeight: 400,
+                color: FAINT,
+                margin: '0 0 10px 0',
+                fontFamily: MONO,
+                letterSpacing: '0.08em'
               }}>
-                You may like
+                {'//'} quick actions
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {quickSuggestions.map((suggestion, index) => (
                   <button
                     key={index}
                     onClick={() => handleQuickAction(suggestion.text)}
                     style={{
-                      background: colors.cardBg,
-                      border: `1px solid ${colors.cardBorder}`,
-                      borderRadius: '8px',
-                      padding: '12px',
-                      color: colors.textPrimary,
+                      background: 'rgba(0,255,65,0.03)',
+                      border: `1px solid ${BORDER_DIM}`,
+                      borderRadius: '4px',
+                      padding: '8px 12px',
+                      color: 'rgba(255,255,255,0.8)',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       textAlign: 'left',
-                      fontSize: '13px',
+                      fontSize: '12px',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      fontFamily: MONO
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.borderColor = colors.primaryColor
-                      e.target.style.transform = 'translateY(-1px)'
+                      e.target.style.borderColor = GREEN
+                      e.target.style.background = 'rgba(0,255,65,0.07)'
+                      e.target.style.color = '#ffffff'
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.borderColor = colors.cardBorder
-                      e.target.style.transform = 'translateY(0)'
+                      e.target.style.borderColor = BORDER_DIM
+                      e.target.style.background = 'rgba(0,255,65,0.03)'
+                      e.target.style.color = 'rgba(255,255,255,0.8)'
                     }}
                   >
-                    <span style={{ fontSize: '16px' }}>{suggestion.emoji}</span>
+                    <span style={{ fontSize: '12px', color: GREEN, flexShrink: 0 }}>{'>'}</span>
                     <span>{suggestion.text}</span>
                   </button>
                 ))}
@@ -764,17 +623,17 @@ const ChatWidget = () => {
 
             {/* Portfolio Sections */}
             <div>
-              <h3 style={{ 
-                fontSize: '14px', 
-                fontWeight: '600', 
-                color: colors.textSecondary, 
-                margin: '0 0 12px 0',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
+              <h3 style={{
+                fontSize: '11px',
+                fontWeight: 400,
+                color: FAINT,
+                margin: '0 0 10px 0',
+                fontFamily: MONO,
+                letterSpacing: '0.08em'
               }}>
-                Portfolio Sections
+                {'//'} categories
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                 {portfolioSections.map((section, index) => (
                   <button
                     key={index}
@@ -786,11 +645,11 @@ const ChatWidget = () => {
                       }
                     }}
                     style={{
-                      background: expandedSection === section.title ? colors.primaryColor : colors.cardBg,
-                      border: `1px solid ${expandedSection === section.title ? colors.primaryColor : colors.cardBorder}`,
-                      borderRadius: '8px',
-                      padding: '12px 8px',
-                      color: expandedSection === section.title ? '#fff' : colors.textPrimary,
+                      background: expandedSection === section.title ? 'rgba(0,255,65,0.08)' : 'rgba(0,255,65,0.03)',
+                      border: `1px solid ${expandedSection === section.title ? BORDER : BORDER_DIM}`,
+                      borderRadius: '4px',
+                      padding: '10px 8px',
+                      color: '#ffffff',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       textAlign: 'center',
@@ -799,29 +658,29 @@ const ChatWidget = () => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       gap: '4px',
-                      minHeight: expandedSection === section.title ? 'auto' : '80px'
+                      minHeight: expandedSection === section.title ? 'auto' : '72px',
+                      fontFamily: MONO
                     }}
                     onMouseEnter={(e) => {
                       if (expandedSection !== section.title) {
-                        e.target.style.borderColor = colors.primaryColor
-                        e.target.style.transform = 'translateY(-1px)'
+                        e.target.style.borderColor = GREEN
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (expandedSection !== section.title) {
-                        e.target.style.borderColor = colors.cardBorder
-                        e.target.style.transform = 'translateY(0)'
+                        e.target.style.borderColor = BORDER_DIM
                       }
                     }}
                   >
-                    <span style={{ fontSize: '20px' }}>{section.icon}</span>
-                    <span style={{ fontWeight: '600' }}>{section.title}</span>
+                    <span style={{ fontSize: '14px', color: GREEN }}>{section.icon}</span>
+                    <span style={{ fontWeight: 400 }}>{section.title}</span>
                     {expandedSection === section.title && (
-                      <span style={{ 
-                        fontSize: '10px', 
-                        opacity: '0.9',
-                        marginTop: '4px',
-                        lineHeight: '1.2'
+                      <span style={{
+                        fontSize: '10px',
+                        opacity: '0.8',
+                        marginTop: '2px',
+                        lineHeight: '1.3',
+                        color: DIM
                       }}>
                         {section.description}
                       </span>
@@ -838,40 +697,41 @@ const ChatWidget = () => {
             overflowY: 'auto',
             overflowX: 'hidden',
             padding: '16px',
-            background: colors.bgPrimary,
+            background: '#000000',
             WebkitOverflowScrolling: 'touch',
             minHeight: 0
           }} className="chat-scroll">
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} colors={colors} instantMode={instantMode} />
+              <ChatMessage key={message.id} message={message} colors={colors} instantMode />
             ))}
             {isLoading && (
               <div style={{
                 display: 'flex',
                 justifyContent: 'flex-start',
-                marginBottom: '16px'
+                marginBottom: '12px'
               }}>
                 <div style={{
-                  background: colors.cardBg,
-                  borderRadius: '12px',
-                  padding: '12px',
-                  border: `1px solid ${colors.cardBorder}`,
+                  background: 'rgba(0,255,65,0.03)',
+                  border: `1px solid ${BORDER_DIM}`,
+                  borderRadius: '4px',
+                  padding: '10px 12px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: '8px',
+                  fontFamily: MONO
                 }}>
+                  <span style={{ color: GREEN, fontSize: '12px' }}>{'>'}</span>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <div className="chat-loading-dot"></div>
                     <div className="chat-loading-dot"></div>
                     <div className="chat-loading-dot"></div>
                   </div>
-                  <span style={{ color: colors.textSecondary, fontSize: '12px' }}>
-                    {modelStatus.isModelLoaded && !modelStatus.fallbackToRules 
-                      ? '🤖 AI thinking...' 
-                      : modelStatus.isLoading 
-                        ? '⚡ Initializing...'
-                        : '💭 Thinking...'
-                    }
+                  <span style={{ color: DIM, fontSize: '11px' }}>
+                    {modelStatus.isModelLoaded && !modelStatus.fallbackToRules
+                      ? 'processing...'
+                      : modelStatus.isLoading
+                        ? 'initializing...'
+                        : 'thinking...'}
                   </span>
                 </div>
               </div>
@@ -882,15 +742,15 @@ const ChatWidget = () => {
 
         {/* Input Area */}
         <div className="chat-widget-input" style={{
-          borderTop: `1px solid ${colors.cardBorder}`,
-          background: colors.cardBg,
-          padding: '12px',
+          borderTop: `1px solid ${BORDER_DIM}`,
+          background: '#000000',
+          padding: '10px 12px',
           flexShrink: 0
         }}>
           <MessageInput onSendMessage={handleSendMessage} disabled={isLoading} colors={colors} />
         </div>
       </div>
-      
+
       {/* Scheduling Widget */}
       <SchedulingWidget
         aiService={aiService}
@@ -898,18 +758,16 @@ const ChatWidget = () => {
         onHide={() => setShowScheduling(false)}
         meetingSuggestion={meetingSuggestion}
         onMeetingScheduled={(meetingData) => {
-          console.log('Meeting scheduled:', meetingData)
-          // Add a success message to chat
           const successMessage = {
             id: Date.now(),
             type: 'assistant',
-            content: `🎉 Great! Your ${meetingData.meetingType.replace('_', ' ')} is scheduled for ${new Date(meetingData.scheduledTime).toLocaleDateString('en-IN', {
+            content: `> meeting.scheduled()\n${meetingData.meetingType.replace('_', ' ')} on ${new Date(meetingData.scheduledTime).toLocaleDateString('en-IN', {
               weekday: 'long',
               month: 'long',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit'
-            })}. You'll receive a confirmation email shortly!`,
+            })}. A confirmation email is on the way.`,
             timestamp: new Date()
           }
           setMessages(prev => [...prev, successMessage])
@@ -921,4 +779,4 @@ const ChatWidget = () => {
   )
 }
 
-export default ChatWidget 
+export default ChatWidget

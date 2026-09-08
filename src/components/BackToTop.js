@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 // Throttle function to improve scroll performance
 const throttle = (func, limit) => {
   let inThrottle;
-  return function() {
+  function throttledFunction() {
     const args = arguments;
     const context = this;
     if (!inThrottle) {
@@ -12,7 +12,8 @@ const throttle = (func, limit) => {
       inThrottle = true;
       setTimeout(() => inThrottle = false, limit);
     }
-  };
+  }
+  return throttledFunction;
 };
 
 const BackToTop = ({ 
@@ -42,6 +43,7 @@ const BackToTop = ({
   }, []);
 
   // Throttled scroll handler for better performance
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleScroll = useCallback(
     throttle(() => {
       const shouldShow = window.scrollY > threshold;
@@ -83,25 +85,27 @@ const BackToTop = ({
     }
   }, [scrollToTop]);
 
-  // Button styles
+  // Button styles - Terminal Style
   const buttonStyles = {
     position: "fixed",
-    bottom: "2.5rem",
+    bottom: "5.5rem",
     right: "2.5rem",
     zIndex: 9999,
-    background: "linear-gradient(90deg, var(--primary-color), var(--secondary-color))",
-    color: "#fff",
-    border: "none",
-    borderRadius: "50%",
-    width: "48px",
-    height: "48px",
-    boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.15)",
-    fontSize: "1.5rem",
+    background: "rgba(0, 0, 0, 0.9)",
+    backdropFilter: "blur(8px)",
+    color: "#00ff41",
+    border: "1px solid rgba(0, 255, 65, 0.3)",
+    borderRadius: "4px",
+    width: "44px",
+    height: "44px",
+    boxShadow: "0 0 12px rgba(0, 255, 65, 0.2)",
+    fontSize: "1rem",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "all 0.2s ease-in-out",
+    transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+    fontFamily: "'Fira Code', monospace",
   };
 
   // Animation variants
@@ -125,8 +129,8 @@ const BackToTop = ({
       }
     },
     hover: {
-      scale: 1.1,
-      boxShadow: "0 6px 20px 0 rgba(0, 0, 0, 0.25)",
+      scale: 1.05,
+      boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.2), 0 2px 4px 0 rgba(0, 0, 0, 0.15)",
     },
     tap: {
       scale: 0.95

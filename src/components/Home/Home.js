@@ -1,8 +1,5 @@
-import React, { useEffect, Suspense, lazy } from "react";
+import React, { useEffect, useState, useRef, Suspense, lazy } from "react";
 import { Container } from "react-bootstrap";
-import Typewriter from "typewriter-effect";
-import Button from "react-bootstrap/Button";
-import heroImg from "../../Assets/hero-ai-illustration.png";
 import { motion } from "framer-motion";
 import { scroller } from "react-scroll";
 import Loader from "../Loader";
@@ -11,6 +8,7 @@ import { resumeData } from "../../data/resume";
 // Lazy load components for better performance
 const About = lazy(() => import("../About/About"));
 const Projects = lazy(() => import("../Projects/Projects"));
+const Writing = lazy(() => import("../Writing/Writing"));
 const Resume = lazy(() => import("../Resume/ResumeNew"));
 const Contact = lazy(() => import("../Contact/Contact"));
 
@@ -32,16 +30,72 @@ const sectionVariants = {
   }
 };
 
-function Home() {
-  // Generate typewriter strings from resume data
-  const typewriterStrings = [
-    resumeData.title,
-    "Open Source Contributor",
-    "Full Stack Developer",
-    "Cloud-Native Engineer",
-    "Generative AI Solutions Architect",
-  ];
+// Types out an array of lines like real terminal output, one character at a time.
+function HeroTerminal({ lines, speed = 24, linePause = 550 }) {
+  const [typed, setTyped] = useState(Array(lines.length).fill(""));
+  const [activeIdx, setActiveIdx] = useState(0);
+  const reduced = useRef(false);
 
+  useEffect(() => {
+    try {
+      reduced.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) {
+      /* ignore */
+    }
+    if (reduced.current) {
+      setTyped(lines);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (reduced.current || activeIdx >= lines.length) return;
+    const line = lines[activeIdx];
+    let i = 0;
+    let interval;
+    // Small pause before starting a line (except the first).
+    if (activeIdx > 0) {
+      const hold = setTimeout(() => {
+        interval = window.setInterval(typeChar, speed);
+      }, linePause);
+      return () => {
+        clearTimeout(hold);
+        clearInterval(interval);
+      };
+    }
+    interval = window.setInterval(typeChar, speed);
+    function typeChar() {
+      i++;
+      setTyped((prev) => {
+        const next = prev.slice();
+        next[activeIdx] = line.slice(0, i);
+        return next;
+      });
+      if (i >= line.length) {
+        clearInterval(interval);
+        setActiveIdx(activeIdx + 1);
+      }
+    }
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIdx, lines, speed, linePause]);
+
+  return (
+    <div className="hero-terminal" aria-hidden="true">
+      {lines.map((line, idx) => (
+        <p key={idx} className="hero-term-line">
+          <span className="hero-term-prompt">&gt;</span>
+          <span className="hero-term-text">{typed[idx]}</span>
+          {idx === activeIdx && !reduced.current && (
+            <span className="hero-term-cursor"></span>
+          )}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function Home() {
   // Handle hash-based navigation
   useEffect(() => {
     const handleHashNavigation = () => {
@@ -74,164 +128,36 @@ function Home() {
     return () => window.removeEventListener('hashchange', handleHashNavigation);
   }, []);
 
-  // Ensure gradient text is visible - fallback detection
-  useEffect(() => {
-    const ensureTextVisibility = () => {
-      // Get computed style to access CSS custom properties
-      const rootStyle = getComputedStyle(document.documentElement);
-      const primaryColor = rootStyle.getPropertyValue('--primary-color').trim();
-      const textPrimary = rootStyle.getPropertyValue('--text-primary').trim();
-      const accentColor = rootStyle.getPropertyValue('--accent-color').trim();
-      
-      // Handle gradient text elements
-      const gradientElements = document.querySelectorAll('.hero-name-gradient');
-      
-      gradientElements.forEach(element => {
-        // Force fallback styling to ensure visibility
-        element.style.setProperty('color', primaryColor, 'important');
-        
-        // Test if gradient is working by checking computed styles
-        const computedStyle = window.getComputedStyle(element);
-        const webkitTextFillColor = computedStyle.webkitTextFillColor;
-        
-        // If gradient fails or text is transparent without proper fallback
-        if (webkitTextFillColor === 'transparent' || webkitTextFillColor === 'rgba(0, 0, 0, 0)') {
-          // Check if gradient background is actually applied
-          const hasValidGradient = computedStyle.background && 
-                                  computedStyle.background.includes('gradient');
-          
-          if (!hasValidGradient) {
-            // Apply fallback class for solid color
-            element.classList.add('fallback');
-            element.style.setProperty('background', 'none', 'important');
-            element.style.setProperty('-webkit-text-fill-color', primaryColor, 'important');
-            element.style.setProperty('color', primaryColor, 'important');
-          }
-        }
-      });
-
-      // Handle all other hero text elements
-      const heroElements = document.querySelectorAll('.hero-greeting, .hero-tagline, .typewriter-row, .Typewriter__wrapper');
-      
-      heroElements.forEach(element => {
-        if (element.classList.contains('hero-greeting')) {
-          element.style.setProperty('color', textPrimary, 'important');
-        } else if (element.classList.contains('hero-tagline')) {
-          const textSecondary = rootStyle.getPropertyValue('--text-secondary').trim();
-          element.style.setProperty('color', textSecondary, 'important');
-        } else {
-          element.style.setProperty('color', accentColor, 'important');
-        }
-      });
-
-      // Also ensure any text inside split-hero is visible
-      const splitHeroText = document.querySelectorAll('.split-hero h1, .split-hero h2, .split-hero p, .split-hero span:not(.hero-name-gradient)');
-      splitHeroText.forEach(element => {
-        if (!element.classList.contains('hero-name-gradient')) {
-          element.style.setProperty('color', textPrimary, 'important');
-        }
-      });
-    };
-
-    // Run immediately and after DOM is fully loaded
-    ensureTextVisibility();
-    
-    // Also run after a short delay to catch any late-loading styles
-    setTimeout(ensureTextVisibility, 100);
-    setTimeout(ensureTextVisibility, 500);
-    
-    // Run again after typewriter effect might load
-    setTimeout(ensureTextVisibility, 1000);
-    
-    // Listen for theme changes and re-apply colors
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
-          setTimeout(ensureTextVisibility, 50);
-        }
-      });
-    });
-    
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   return (
     <main>
-      {/* Hero Section */}
+      {/* Hero Section - Terminal/BIOS Style */}
       <section className="split-hero" id="home" aria-labelledby="hero-heading">
-        <div className="split-left" style={{ alignItems: 'flex-start', textAlign: 'left', paddingLeft: '4vw' }}>
-          <h1 className="hero-greeting">
-            Welcome! <span className="wave" role="img" aria-label="waving hand">👋🏻</span>
+        <div className="split-left">
+          <h1 id="hero-heading" className="hero-name-gradient">
+            {resumeData.name}
           </h1>
-          <h2 id="hero-heading" className="hero-name-gradient" style={{ marginBottom: 0 }}>
-            I'M <span className="hero-name-strong">{resumeData.name.toUpperCase()}</span>
-          </h2>
-          <div className="hero-accent-underline" style={{ margin: '1.5rem 0' }} aria-hidden="true"></div>
-        </div>
-        
-        <img 
-          src={heroImg} 
-          alt={`Professional AI technology illustration representing ${resumeData.name}'s expertise in software engineering and artificial intelligence`}
-          className="split-center-image" 
-          width="180" 
-          height="180"
-          loading="eager"
-          fetchPriority="high"
-          onError={(e) => {
-            console.warn('Hero image failed to load');
-            e.target.style.display = 'none';
-          }}
-        />
-        
-        <div className="split-right">
-          <p className="hero-tagline" style={{ 
-            fontSize: '1.3rem', 
-            fontWeight: 500, 
-            textAlign: 'center', 
-            maxWidth: 400 
-          }}>
-            {resumeData.title} — Building the Future with Code & Intelligence
+          <p className="hero-tagline">
+            {resumeData.title}
           </p>
-          
-          <div 
-            className="typewriter-row" 
-            style={{ 
-              marginTop: '2rem', 
-              fontSize: '1.1rem', 
-              color: 'var(--primary-color)', 
-              fontWeight: 600, 
-              whiteSpace: 'nowrap' 
-            }}
-            aria-live="polite"
-            aria-label="Current role and expertise"
-          >
-            <Typewriter
-              options={{
-                strings: typewriterStrings,
-                autoStart: true,
-                loop: true,
-                deleteSpeed: 40,
-                delay: 60
-              }}
-            />
-          </div>
-          
-          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <Button
-              as="a"
-              className="btn btn-primary download-resume-btn"
-              href="/Himanshu_Resume.pdf"
-              download={`${resumeData.name.replace(' ', '_')}_Resume.pdf`}
+          <p className="hero-subtag">
+            Backend • AI • Distributed Systems
+          </p>
+
+          <HeroTerminal lines={["building systems that scale.", "building tools that think."]} />
+
+          <div className="hero-cta-row">
+            <a className="btn-accent" href="/#projects" style={{ fontFamily: "'Fira Code', monospace" }}>
+              View Projects
+            </a>
+            <a
+              className="btn-ghost"
+              href="/Himanshu_Chaudhary_Resume.pdf"
+              download="Himanshu_Chaudhary_Resume.pdf"
+              style={{ fontFamily: "'Fira Code', monospace" }}
             >
-              Download Resume (PDF)
-            </Button>
+              View Resume
+            </a>
           </div>
         </div>
       </section>
@@ -264,6 +190,20 @@ function Home() {
         </Suspense>
       </motion.section>
 
+      {/* Writing Section */}
+      <motion.section 
+        id="writing" 
+        variants={sectionVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-10%" }}
+        aria-labelledby="writing-heading"
+      >
+        <Suspense fallback={<Loader message="Loading Writing..." />}>
+          <Writing />
+        </Suspense>
+      </motion.section>
+
       {/* Resume Section */}
       <motion.section 
         id="resume" 
@@ -289,7 +229,10 @@ function Home() {
         aria-labelledby="contact-heading"
       >
         <Container>
-          <h2 id="contact-heading" className="section-title">Contact</h2>
+          <h2 id="contact-heading" style={{ fontSize: "clamp(1.4rem, 2.5vw, 1.8rem)", fontWeight: 600, textAlign: "center", color: "#ffffff", marginBottom: 0, fontFamily: "'Fira Code', monospace" }}>
+            <span style={{ color: '#00ff41' }}>{'>'}</span> contact
+          </h2>
+          <div className="section-divider-center" aria-hidden="true"></div>
           <Suspense fallback={<Loader message="Loading Contact form..." />}>
             <Contact />
           </Suspense>

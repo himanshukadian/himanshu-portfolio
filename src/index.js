@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { Analytics } from '@vercel/analytics/react';
 
 // Error handling for root render
 const renderApp = () => {
@@ -15,7 +14,6 @@ const renderApp = () => {
     root.render(
       <React.StrictMode>
         <App />
-        <Analytics />
       </React.StrictMode>
     );
   } catch (error) {

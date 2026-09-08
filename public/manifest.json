@@ -1,7 +1,7 @@
 {
   "name": "Himanshu Chaudhary - Senior Software Engineer Portfolio",
   "short_name": "HC Portfolio",
-  "description": "Senior Software Engineer at Wayfair specializing in Full Stack Development, Cloud Architecture, AI/ML, and System Design. Professional portfolio showcasing projects, skills, and experience.",
+  "description": "Senior Software Engineer at Wayfair specializing in scalable backend systems, microservices architecture, cloud-native development, system design, and Generative AI solutions. Professional portfolio showcasing projects, skills, and experience.",
   "version": "2.0.0",
   "manifest_version": 2,
   "start_url": "/",

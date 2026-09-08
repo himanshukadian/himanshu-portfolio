@@ -1,6 +1,13 @@
 import React, { useState, useRef } from "react";
 import { Form, Button, Alert } from "react-bootstrap";
-import { FaCheckCircle } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaEnvelope,
+  FaLinkedin,
+  FaClock,
+  FaPhoneAlt,
+} from "react-icons/fa";
+import { resumeData } from "../../data/resume";
 
 function Contact() {
   const form = useRef();
@@ -33,7 +40,7 @@ function Contact() {
     }
 
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://api.buildwithhimanshu.com';
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://himanshu-portfolio-api-e10b4543a453.herokuapp.com';
       const response = await fetch(`${backendUrl}/api/contact/submit`, {
         method: 'POST',
         headers: {
@@ -58,14 +65,51 @@ function Contact() {
   };
 
   return (
-    <div className="contact-form-wrapper" style={{ maxWidth: 500, margin: "2rem auto 0 auto", background: "rgba(44,62,80,0.7)", borderRadius: 16, padding: "2rem", boxShadow: "0 4px 32px 0 rgba(44,62,80,0.10)", border: "1.5px solid #00e6fe" }}>
-      <h3 style={{ color: "#00e6fe", fontWeight: 700, marginBottom: "1.5rem", textAlign: "center" }}>Send me a message</h3>
+    <div className="contact-wrapper">
+      {/* Contact Info Row */}
+      <div className="contact-info-row">
+        <a href={`mailto:${resumeData.email}`} className="contact-info-chip" style={{ fontFamily: "'Fira Code', monospace" }}>
+          <span className="k9s-item-key">e</span>
+          <FaEnvelope className="contact-info-icon" />
+          <span>{resumeData.email}</span>
+        </a>
+        <a
+          href={resumeData.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="contact-info-chip"
+          style={{ fontFamily: "'Fira Code', monospace" }}
+        >
+          <span className="k9s-item-key">l</span>
+          <FaLinkedin className="contact-info-icon" />
+          <span>linkedin</span>
+        </a>
+        <a href={`tel:${resumeData.phone}`} className="contact-info-chip" style={{ fontFamily: "'Fira Code', monospace" }}>
+          <span className="k9s-item-key">t</span>
+          <FaPhoneAlt className="contact-info-icon" />
+          <span>{resumeData.phone}</span>
+        </a>
+        <span className="contact-info-chip contact-response-time" style={{ fontFamily: "'Fira Code', monospace" }}>
+          <span className="k9s-item-key">{'>'}</span>
+          <FaClock className="contact-info-icon" />
+          <span>24h response</span>
+        </span>
+      </div>
+
+      {/* Form */}
+      <div className="contact-form-wrapper">
+      <h3 style={{ color: "#ffffff", fontWeight: 600, marginBottom: "0.4rem", textAlign: "center", fontFamily: "'Fira Code', monospace", fontSize: '1rem' }}>
+        <span style={{ color: '#00ff41' }}>{'>'}</span> contact.send()
+      </h3>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.78rem", textAlign: "center", marginBottom: "1.5rem", fontFamily: "'Fira Code', monospace" }}>
+        Open to Senior SWE, Staff Engineer, and AI/ML roles
+      </p>
       {submitted ? (
-        <Alert variant="success" onClose={() => setSubmitted(false)} dismissible style={{ textAlign: 'center', fontSize: '1.15em', fontWeight: 600, padding: '2.2rem 1.2rem' }}>
-          <FaCheckCircle style={{ color: '#00e6fe', fontSize: '2.2em', marginBottom: '0.5em' }} />
-          <div>Thank you! Your message has been sent successfully.</div>
-          <div style={{ fontSize: '0.95em', color: 'var(--text-secondary)', marginTop: '0.7em' }}>
-            I'll get back to you as soon as possible.
+        <Alert variant="success" onClose={() => setSubmitted(false)} dismissible style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 400, padding: '2rem 1.2rem', background: 'rgba(0, 255, 65, 0.05)', border: '1px solid rgba(0, 255, 65, 0.2)', color: '#ffffff', borderRadius: '4px', fontFamily: "'Fira Code', monospace" }}>
+          <FaCheckCircle style={{ color: '#00ff41', fontSize: '2em', marginBottom: '0.5em' }} />
+          <div style={{ color: '#00ff41' }}>{'>'} message.sent()</div>
+          <div style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)', marginTop: '0.7em' }}>
+            {'>'} response.incoming()
           </div>
         </Alert>
       ) : (
@@ -73,40 +117,49 @@ function Contact() {
           {error && <Alert variant="danger" onClose={() => setError("")} dismissible>{error}</Alert>}
           <Form ref={form} onSubmit={handleSubmit} autoComplete="off">
             <Form.Group controlId="contactName" className="mb-3">
-              <Form.Label>Name</Form.Label>
+              <Form.Label style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
+                {'>'} name:
+              </Form.Label>
               <Form.Control 
                 type="text" 
                 name="name" 
                 value={formData.name} 
                 onChange={handleChange} 
-                placeholder="Your Name" 
+                placeholder="Enter your name" 
                 required 
                 disabled={loading}
+                style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.85rem' }}
               />
             </Form.Group>
             <Form.Group controlId="contactEmail" className="mb-3">
-              <Form.Label>Email</Form.Label>
+              <Form.Label style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
+                {'>'} email:
+              </Form.Label>
               <Form.Control 
                 type="email" 
                 name="email" 
                 value={formData.email} 
                 onChange={handleChange} 
-                placeholder="Your Email" 
+                placeholder="Enter your email" 
                 required 
                 disabled={loading}
+                style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.85rem' }}
               />
             </Form.Group>
             <Form.Group controlId="contactMessage" className="mb-3">
-              <Form.Label>Message</Form.Label>
+              <Form.Label style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
+                {'>'} message:
+              </Form.Label>
               <Form.Control 
                 as="textarea" 
                 name="message" 
                 value={formData.message} 
                 onChange={handleChange} 
-                placeholder="Your Message" 
+                placeholder="Enter your message" 
                 rows={4} 
                 required 
                 disabled={loading}
+                style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.85rem' }}
               />
             </Form.Group>
             <div style={{ textAlign: "center" }}>
@@ -114,22 +167,29 @@ function Contact() {
                 variant="primary" 
                 type="submit" 
                 disabled={loading}
+                className="btn-accent"
                 style={{ 
-                  background: "linear-gradient(90deg, #00e6fe, #6C63FF)", 
-                  border: "none", 
-                  fontWeight: 600, 
-                  borderRadius: 8, 
-                  padding: "0.5rem 2.5rem",
                   opacity: loading ? 0.7 : 1,
-                  cursor: loading ? "not-allowed" : "pointer"
+                  cursor: loading ? "not-allowed" : "pointer",
+                  minWidth: "160px",
+                  padding: "0.75rem 2rem",
+                  fontSize: "0.85rem",
+                  fontWeight: 400,
+                  border: "1px solid #00ff41",
+                  borderRadius: "4px",
+                  background: "transparent",
+                  color: "#00ff41",
+                  fontFamily: "'Fira Code', monospace",
+                  letterSpacing: '0.1em'
                 }}
               >
-                {loading ? "Sending..." : "Send Message"}
+                {loading ? '>>> sending...' : '>>> send'}
               </Button>
             </div>
           </Form>
         </>
       )}
+      </div>
     </div>
   );
 }

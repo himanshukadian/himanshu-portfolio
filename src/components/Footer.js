@@ -1,7 +1,6 @@
 import React from "react";
 import { Container, Row, Col } from "react-bootstrap";
 import {
-  AiFillGithub,
   AiOutlineMail,
   AiOutlinePhone,
 } from "react-icons/ai";
@@ -12,32 +11,27 @@ function Footer() {
   let date = new Date();
   let year = date.getFullYear();
   return (
-    <Container fluid className="footer">
+    <Container fluid className="footer meyriva-footer">
       <Row>
         <Col md="4" className="footer-copywright">
-          <h3>Designed and Developed by {resumeData.name}</h3>
+          <h3 style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.75rem', fontWeight: 400 }}>
+            <span style={{ color: '#00ff41' }}>{'>'}</span> {resumeData.name}
+          </h3>
         </Col>
         <Col md="4" className="footer-copywright">
-          <h3>Copyright © {year} HC</h3>
+          <h3 style={{ fontFamily: "'Fira Code', monospace", fontSize: '0.75rem', fontWeight: 400 }}>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>{'//'} </span>copyright © {year}
+          </h3>
         </Col>
         <Col md="4" className="footer-body">
-          <ul className="footer-icons">
-            <li className="social-icons">
-              <a
-                href={resumeData.github}
-                target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="GitHub Profile"
-              >
-                <AiFillGithub />
-              </a>
-            </li>
+          <ul className="footer-icons meyriva-footer-icons">
             <li className="social-icons">
               <a
                 href={resumeData.linkedin}
                 target="_blank" 
                 rel="noopener noreferrer"
                 aria-label="LinkedIn Profile"
+                className="meyriva-social-link"
               >
                 <FaLinkedinIn />
               </a>
@@ -48,6 +42,7 @@ function Footer() {
                 target="_blank" 
                 rel="noopener noreferrer"
                 aria-label="Email Contact"
+                className="meyriva-social-link"
               >
                 <AiOutlineMail />
               </a>
@@ -58,6 +53,7 @@ function Footer() {
                 target="_blank" 
                 rel="noopener noreferrer"
                 aria-label="Phone Contact"
+                className="meyriva-social-link"
               >
                 <AiOutlinePhone />
               </a>

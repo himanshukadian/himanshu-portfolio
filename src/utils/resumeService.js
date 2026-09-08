@@ -1,10 +1,12 @@
+import devLog from './devLog.js';
+
 class ResumeService {
   constructor() {
-    this.backendUrl = 'https://api.buildwithhimanshu.com';
+    this.backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://himanshu-portfolio-api-e10b4543a453.herokuapp.com';
     this.apiEndpoint = `${this.backendUrl}/api/resume`;
     
-    console.log('🔧 Resume Service initialized');
-    console.log(`🚀 Backend URL: ${this.backendUrl}`);
+    devLog('🔧 Resume Service initialized');
+    devLog(`🚀 Backend URL: ${this.backendUrl}`);
   }
 
   // Health check for resume service
@@ -17,7 +19,7 @@ class ResumeService {
       }
       
       const data = await response.json();
-      console.log('✅ Resume service health:', data);
+      devLog('✅ Resume service health:', data);
       return data;
     } catch (error) {
       console.error('❌ Resume service health check failed:', error);
@@ -42,7 +44,7 @@ class ResumeService {
       }
 
       const data = await response.json();
-      console.log('✅ Base resume created:', data.data?.resume?._id);
+      devLog('✅ Base resume created:', data.data?.resume?._id);
       return data;
     } catch (error) {
       console.error('❌ Failed to create base resume:', error);
@@ -67,7 +69,7 @@ class ResumeService {
       }
 
       const data = await response.json();
-      console.log('🔍 Job analysis completed');
+      devLog('🔍 Job analysis completed');
       return data;
     } catch (error) {
       console.error('❌ Failed to analyze job:', error);
@@ -99,8 +101,8 @@ class ResumeService {
       }
 
       const data = await response.json();
-      console.log('✨ Resume customized for:', companyName, '-', jobTitle);
-      console.log('📊 ATS Score:', data.data?.atsScore + '%');
+      devLog('✨ Resume customized for:', companyName, '-', jobTitle);
+      devLog('📊 ATS Score:', data.data?.atsScore + '%');
       return data;
     } catch (error) {
       console.error('❌ Failed to customize resume:', error);
@@ -125,7 +127,7 @@ class ResumeService {
       }
 
       const data = await response.json();
-      console.log('📄 PDF generated:', data.data?.fileName);
+      devLog('📄 PDF generated:', data.data?.fileName);
       return data;
     } catch (error) {
       console.error('❌ Failed to generate PDF:', error);
@@ -154,7 +156,7 @@ class ResumeService {
       }
 
       const data = await response.json();
-      console.log('📋 Retrieved resumes:', data.data?.resumes?.length || 0);
+      devLog('📋 Retrieved resumes:', data.data?.resumes?.length || 0);
       return data;
     } catch (error) {
       console.error('❌ Failed to get resumes:', error);
@@ -173,7 +175,7 @@ class ResumeService {
       }
 
       const data = await response.json();
-      console.log('📄 Retrieved resume:', resumeId);
+      devLog('📄 Retrieved resume:', resumeId);
       return data;
     } catch (error) {
       console.error('❌ Failed to get resume:', error);
@@ -189,7 +191,7 @@ class ResumeService {
   // Helper: One-step resume customization and PDF generation
   async customizeAndGeneratePDF(jobData, template = 'professional') {
     try {
-      console.log('🚀 Starting full resume customization process...');
+      devLog('🚀 Starting full resume customization process...');
       
       // Step 1: Customize resume
       const customizationResult = await this.customizeResumeForJob(jobData);

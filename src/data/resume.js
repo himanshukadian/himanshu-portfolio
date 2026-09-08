@@ -1,13 +1,13 @@
 export const resumeData = {
   "name": "Himanshu Chaudhary",
-  "title": "Backend Software Engineer",
+  "title": "Senior Software Engineer",
   "location": "New Delhi",
-  "email": "himanshuofficialnitw@gmail.com",
-  "phone": "+91-7983713217",
-  "linkedin": "https://www.linkedin.com/in/himanshuofficialnitw/",
-  "github": "https://github.com/himanshuofficialnitw",
+  "email": "himanshu.c.official@gmail.com",
+  "phone": "+91-9761744048",
+  "linkedin": "https://www.linkedin.com/in/himanshucofficial",
+  "github": "https://github.com/himanshukadian",
   "portfolio": "https://portfolio.buildwithhimanshu.com",
-  "summary": "Backend Software Engineer with 4+ years of experience building scalable, distributed, and high-performance backend systems for large-scale consumer platforms. Strong background in microservices architecture, REST APIs, cloud-native development, system design, and data pipelines. Proven success in reducing operational costs, improving onboarding time, and automating business workflows. Proficient in Python, Java, SQL, AWS, Kafka, DynamoDB, Docker, Kubernetes, and Generative AI solutions based on Large Language Models.",
+  "summary": "Senior Software Engineer with 5+ years of experience building scalable, distributed, and high-performance backend systems for large-scale consumer platforms. Strong background in microservices architecture, REST APIs, cloud-native development, system design, and data pipelines. Proven success in reducing operational costs, improving onboarding time, and automating business workflows. Proficient in Python, Java, SQL, AWS, Kafka, DynamoDB, Docker, Kubernetes, and Generative AI solutions based on Large Language Models.",
   "skills": {
     "languages": ["Python", "Java", "C++", "JavaScript", "SQL"],
     "developerTools": ["VS Code", "IntelliJ", "AWS", "Kafka", "DynamoDB", "Lambda", "Cloud Functions"],
@@ -37,7 +37,9 @@ export const resumeData = {
       "duration": "July 2022 - March 2023",
       "highlights": [
         "Built an automated customer migration pipeline to transition 1M+ users between marketplaces with high data consistency and zero manual intervention.",
-        "Migrated core backend services from a legacy architecture to a modern scalable design, lowering infrastructure and maintenance costs by 50% while improving system reliability and performance."
+        "Migrated core backend services from a legacy architecture to a modern scalable design, lowering infrastructure and maintenance costs by 50% while improving system reliability and performance.",
+        "Designed a centralized reporting and visualization system (FAST UI) consolidating 1,500+ business and performance metrics into a single executive dashboard, reducing manual reporting effort and enabling faster data-driven decisions for program and product managers.",
+        "Built scalable backend data pipelines and feature engineering workflows processing large-scale customer behavior data (clickstream, watch history, transactions) to support the Amazon Prime recommendation engine, improving model input quality, inference scalability, and recommendation accuracy."
       ]
     },
     {
@@ -46,8 +48,8 @@ export const resumeData = {
       "location": "Faridabad, Haryana",
       "duration": "January 2021 - June 2022",
       "highlights": [
-        "Designed a profiling dashboard for publishers and campaigns.",
-        "Developed microservices for analytics management."
+        "Developed scalable backend profiling and campaign management services using microservices architecture, driving analytics pipelines for data ingestion, aggregation, and KPI computation, and improving system scalability, data consistency, and reporting accuracy for publisher and campaign operations.",
+        "Built scalable backend systems and integrated frontend analytics dashboards to track CAC, LTV, campaign spend, and optimization metrics on a single unified platform, enabling data-driven decision-making and operational cost optimization."
       ]
     }
   ],

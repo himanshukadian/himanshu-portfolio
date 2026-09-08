@@ -1,6 +1,8 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import CommandPalette from "./components/CommandPalette";
+import HostTerminal from "./components/HostTerminal";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import Loader from "./components/Loader";
@@ -11,10 +13,21 @@ import "./style.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import NotFound from "./components/NotFound";
 import BackToTop from "./components/BackToTop";
+import SectionDots from "./components/SectionDots";
 import { HelmetProvider } from 'react-helmet-async';
 
 // Single lazy-loaded Home component that contains all sections
 const Home = lazy(() => import("./components/Home/Home"));
+
+// True when this app instance is running inside a frame (i.e. the embedded
+// copy of the portfolio shown inside the top-level terminal window).
+const IS_EMBEDDED = (() => {
+  try {
+    return typeof window !== 'undefined' && window.self !== window.top;
+  } catch (e) {
+    return true;
+  }
+})();
 
 // Enhanced Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -28,6 +41,7 @@ class ErrorBoundary extends React.Component {
     };
   }
 
+  // eslint-disable-next-line no-unused-vars
   static getDerivedStateFromError(_error) {
     return { hasError: true };
   }
@@ -77,52 +91,58 @@ class ErrorBoundary extends React.Component {
           marginTop: '50px',
           maxWidth: '600px',
           margin: '50px auto',
-          fontFamily: "'Inter', 'Poppins', Arial, sans-serif"
+          fontFamily: "'Fira Code', monospace",
+          background: '#000',
+          color: '#fff'
         }}>
           <h1 style={{ 
-            color: '#ff4444', 
+            color: '#ff0000', 
             marginBottom: '20px',
-            fontSize: '2.5rem' 
+            fontSize: '1.5rem',
+            fontWeight: 600
           }}>
-            Oops! Something went wrong
+            {'>'} FATAL ERROR
           </h1>
           <p style={{ 
-            color: '#666', 
+            color: 'rgba(255,255,255,0.6)', 
             marginBottom: '30px',
-            fontSize: '1.1rem',
-            lineHeight: '1.6'
+            fontSize: '0.85rem',
+            lineHeight: '1.7'
           }}>
-            We encountered an unexpected error. This has been logged and we'll look into it.
+            {'>'} An unexpected error occurred.<br />
+            {'>'} This has been logged to console.
           </p>
           
           {process.env.NODE_ENV === 'development' && (
             <details style={{ 
               textAlign: 'left', 
               marginBottom: '30px',
-              background: '#f8f9fa',
+              background: 'rgba(255,0,0,0.05)',
               padding: '20px',
-              borderRadius: '8px',
-              border: '1px solid #dee2e6'
+              borderRadius: '4px',
+              border: '1px solid rgba(255,0,0,0.2)'
             }}>
               <summary style={{ 
                 cursor: 'pointer', 
-                fontWeight: 'bold',
-                marginBottom: '10px' 
+                fontWeight: 500,
+                marginBottom: '10px',
+                color: '#ff0000'
               }}>
-                Error Details (Development)
+                {'>'} error.details
               </summary>
-              <p><strong>Error:</strong> {this.state.error}</p>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>{this.state.error}</p>
               <pre style={{ 
-                fontSize: '12px', 
+                fontSize: '0.75rem', 
                 overflow: 'auto',
-                background: '#ffffff',
+                background: '#000',
                 padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px'
+                border: '1px solid rgba(255,0,0,0.2)',
+                borderRadius: '4px',
+                color: 'rgba(255,255,255,0.5)'
               }}>
                 {this.state.errorInfo}
               </pre>
-              <p><strong>Error ID:</strong> {this.state.eventId}</p>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>{this.state.eventId}</p>
             </details>
           )}
           
@@ -130,38 +150,40 @@ class ErrorBoundary extends React.Component {
             <button 
               onClick={this.handleReload}
               style={{
-                padding: '12px 24px', 
-                background: '#007bff', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px', 
+                padding: '0.7rem 1.5rem', 
+                background: 'transparent', 
+                color: '#00ff41', 
+                border: '1px solid #00ff41', 
+                borderRadius: '4px', 
                 cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: '600',
-                transition: 'background-color 0.2s'
+                fontSize: '0.8rem',
+                fontWeight: 400,
+                fontFamily: "'Fira Code', monospace",
+                transition: 'all 0.25s ease'
               }}
-              onMouseOver={(e) => e.target.style.background = '#0056b3'}
-              onMouseOut={(e) => e.target.style.background = '#007bff'}
+              onMouseOver={(e) => { e.target.style.background = 'rgba(0,255,65,0.1)'; e.target.style.boxShadow = '0 0 12px rgba(0,255,65,0.2)'; }}
+              onMouseOut={(e) => { e.target.style.background = 'transparent'; e.target.style.boxShadow = 'none'; }}
             >
-              🔄 Reload Page
+              {'>'} retry
             </button>
             <button 
               onClick={this.handleGoHome}
               style={{
-                padding: '12px 24px', 
-                background: '#28a745', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px', 
+                padding: '0.7rem 1.5rem', 
+                background: 'transparent', 
+                color: 'rgba(255,255,255,0.6)', 
+                border: '1px solid rgba(255,255,255,0.15)', 
+                borderRadius: '4px', 
                 cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: '600',
-                transition: 'background-color 0.2s'
+                fontSize: '0.8rem',
+                fontWeight: 400,
+                fontFamily: "'Fira Code', monospace",
+                transition: 'all 0.25s ease'
               }}
-              onMouseOver={(e) => e.target.style.background = '#1e7e34'}
-              onMouseOut={(e) => e.target.style.background = '#28a745'}
+              onMouseOver={(e) => { e.target.style.color = '#fff'; e.target.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+              onMouseOut={(e) => { e.target.style.color = 'rgba(255,255,255,0.6)'; e.target.style.borderColor = 'rgba(255,255,255,0.15)'; }}
             >
-              🏠 Go Home
+              {'>'} cd /home
             </button>
           </div>
         </div>
@@ -199,7 +221,8 @@ const NetworkStatus = () => {
   if (!isOnline) {
     return (
       <div className="offline-indicator" role="alert" aria-live="assertive">
-        📶 You're currently offline. Some features may not work properly.
+        <span className="offline-indicator-tag">[ WARN ]</span>{' '}
+        You&apos;re currently offline. Some features may not work properly.
       </div>
     );
   }
@@ -207,7 +230,9 @@ const NetworkStatus = () => {
   return null;
 };
 
-function AppContent() {
+// The embedded (plain) copy of the portfolio shown inside the terminal window.
+// No boot loader, no terminal chrome — just the full site.
+function PlainSite() {
   return (
     <div className="App">
       {/* Skip Navigation for Accessibility */}
@@ -217,22 +242,90 @@ function AppContent() {
       
       <NetworkStatus />
       <Navbar />
+      <CommandPalette />
       <BackToTop />
+      <SectionDots />
       <ChatWidget />
-      <Suspense fallback={<Loader message="Loading portfolio..." />}>
-        <ErrorBoundary>
-          <ScrollToTop />
-          <main id="main-content" tabIndex="-1">
+      <ErrorBoundary>
+        <ScrollToTop />
+        <main id="main-content" tabIndex="-1">
+          <Suspense fallback={<Loader message="Loading portfolio..." />}>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </main>
-        </ErrorBoundary>
-      </Suspense>
+          </Suspense>
+        </main>
+      </ErrorBoundary>
       <Footer />
     </div>
   );
+}
+
+// Top-level default view: a big terminal window with the complete portfolio
+// running inside it.
+function TerminalDesktop() {
+  const [loaded, setLoaded] = useState(false);
+  const siteIframeRef = useRef(null);
+  const siteUrl = typeof window !== 'undefined' ? window.location.origin : '/';
+
+  return (
+    <div className="terminal-desktop">
+      <div className="terminal-desktop-window">
+        <div className="resume-terminal-titlebar">
+          <div className="resume-terminal-dots" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div className="resume-terminal-title">portfolio@himanshu:~/portfolio — bash — 110×40</div>
+        </div>
+        <div className="terminal-desktop-body">
+          {!loaded && (
+            <div className="resume-terminal-boot" aria-hidden="true">
+              <span style={{ color: '#00ff41' }}>{'>'}</span> loading complete portfolio
+              <span className="resume-terminal-cursor"></span>
+            </div>
+          )}
+          <iframe
+            ref={siteIframeRef}
+            src={siteUrl}
+            title="Complete portfolio running inside terminal window"
+            className="terminal-desktop-iframe"
+            onLoad={() => setLoaded(true)}
+          />
+          <div className="resume-terminal-scanlines" aria-hidden="true"></div>
+        </div>
+      </div>
+      <HostTerminal siteIframeRef={siteIframeRef} />
+    </div>
+  );
+}
+
+// Boot loader screen. Holds the BIOS sequence on screen for 6400ms, then shows
+// the terminal window. Embedded copies skip the boot entirely.
+function Shell() {
+  const [bootComplete, setBootComplete] = useState(IS_EMBEDDED);
+
+  useEffect(() => {
+    if (IS_EMBEDDED) return;
+    const timer = setTimeout(() => setBootComplete(true), 6400);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (IS_EMBEDDED) {
+    return <PlainSite />;
+  }
+
+  if (!bootComplete) {
+    return (
+      <div className="App">
+        <Loader message="Loading portfolio..." />
+      </div>
+    );
+  }
+
+  return <TerminalDesktop />;
 }
 
 function App() {
@@ -242,7 +335,7 @@ function App() {
         <ThemeProvider>
           <Router>
             <SEO />
-            <AppContent />
+            <Shell />
           </Router>
         </ThemeProvider>
       </HelmetProvider>

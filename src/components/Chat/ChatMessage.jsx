@@ -1,19 +1,26 @@
 import { useState, useEffect, useRef } from 'react'
 
+const MONO = "'Fira Code', monospace"
+const GREEN = '#00ff41'
+const DIM = 'rgba(255,255,255,0.5)'
+const FAINT = 'rgba(255,255,255,0.3)'
+const BORDER = 'rgba(0,255,65,0.25)'
+const BORDER_DIM = 'rgba(0,255,65,0.12)'
+
 const ChatMessage = ({ message, colors, instantMode = false }) => {
   const [displayedText, setDisplayedText] = useState('')
   const [isTyping, setIsTyping] = useState(true)
   const messageRef = useRef(null)
 
-  // Use portfolio colors with fallbacks
+  // Terminal color scheme
   const safeColors = colors || {
-    textPrimary: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#232946',
-    textSecondary: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666',
-    bgPrimary: getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#f8f9fa',
-    cardBg: getComputedStyle(document.documentElement).getPropertyValue('--card-bg').trim() || '#fff',
-    cardBorder: getComputedStyle(document.documentElement).getPropertyValue('--card-border').trim() || '#e0e0e0',
-    primaryColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#00e6fe',
-    secondaryColor: getComputedStyle(document.documentElement).getPropertyValue('--secondary-color').trim() || '#2563ff'
+    textPrimary: '#ffffff',
+    textSecondary: DIM,
+    bgPrimary: '#000000',
+    cardBg: 'rgba(0,255,65,0.04)',
+    cardBorder: BORDER,
+    primaryColor: GREEN,
+    secondaryColor: GREEN
   }
 
   // Realistic typing animation for assistant messages
@@ -25,13 +32,13 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
         setIsTyping(false)
         return
       }
-      
+
       setDisplayedText('')
       setIsTyping(true)
-      
+
       const text = message.content
       let currentIndex = 0
-      
+
       const typingInterval = setInterval(() => {
         if (currentIndex < text.length) {
           // Display 2-3 characters at once for faster rendering on long text
@@ -55,25 +62,25 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
   // Format text with line breaks and basic markdown
   const formatText = (text) => {
     if (!text) return null
-    
+
     // Split by double newlines for paragraphs
     const paragraphs = text.split('\n\n')
-    
+
     return paragraphs.map((paragraph, pIndex) => {
       // Split by single newlines for line breaks within paragraphs
       const lines = paragraph.split('\n')
-      
+
       return (
-        <div key={pIndex} style={{ marginBottom: pIndex < paragraphs.length - 1 ? '16px' : '0' }}>
+        <div key={pIndex} style={{ marginBottom: pIndex < paragraphs.length - 1 ? '14px' : '0' }}>
           {lines.map((line, lIndex) => {
             // Handle download links - convert to buttons
             const downloadMatch = line.match(/\[📄 ([^\]]+)\]\(([^)]+)\)/)
             if (downloadMatch) {
               const fileName = downloadMatch[1]
               const downloadUrl = downloadMatch[2]
-              
+
               return (
-                <div key={lIndex} style={{ 
+                <div key={lIndex} style={{
                   marginTop: '8px',
                   marginBottom: '8px',
                   textAlign: 'center'
@@ -85,79 +92,67 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 12px',
-                      background: `linear-gradient(135deg, ${safeColors.primaryColor}, ${safeColors.secondaryColor})`,
-                      color: '#fff',
+                      gap: '8px',
+                      padding: '6px 14px',
+                      background: 'rgba(0,255,65,0.06)',
+                      color: GREEN,
                       textDecoration: 'none',
-                      borderRadius: '16px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                      border: `1px solid ${BORDER}`,
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 400,
+                      fontFamily: MONO,
                       transition: 'all 0.2s ease',
                       cursor: 'pointer'
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.transform = 'translateY(-1px)'
-                      e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18)'
+                      e.target.style.background = 'rgba(0,255,65,0.12)'
+                      e.target.style.boxShadow = '0 0 12px rgba(0,255,65,0.2)'
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.transform = 'translateY(0)'
-                      e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'
+                      e.target.style.background = 'rgba(0,255,65,0.06)'
+                      e.target.style.boxShadow = 'none'
                     }}
                   >
-                    <span style={{ 
-                      fontSize: '11px',
-                      filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))'
-                    }}>📄</span>
-                    <span style={{ 
-                      fontWeight: '600',
-                      letterSpacing: '0.4px',
-                      textTransform: 'uppercase',
-                      fontSize: '11px',
-                      color: '#ffffff',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.4)',
-                      lineHeight: '1.2'
-                    }}>
-                      Download Resume
+                    <span style={{ fontSize: '11px' }}>⬇</span>
+                    <span style={{ letterSpacing: '0.4px', fontSize: '11px' }}>
+                      download --resume
                     </span>
-                    <span style={{ 
-                      fontSize: '10px',
-                      filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))'
-                    }}>⬇️</span>
                   </a>
                 </div>
               )
             }
-            
+
             // Handle bullet points
             if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
               return (
-                <div key={lIndex} style={{ 
-                  marginLeft: '12px', 
+                <div key={lIndex} style={{
+                  marginLeft: '14px',
                   marginBottom: '4px',
                   color: safeColors.textPrimary,
-                  fontSize: '14px',
-                  lineHeight: '1.4'
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  fontFamily: MONO
                 }}>
-                  {line.trim()}
+                  <span style={{ color: GREEN }}>{'>'}</span> {line.trim()}
                 </div>
               )
             }
-            
+
             // Handle bold text with **text**
             const formattedLine = line.replace(/\*\*(.*?)\*\*/g, (match, text) => {
-              return `<strong style="color: ${safeColors.primaryColor}; font-weight: 600;">${text}</strong>`
+              return `<strong style="color: ${GREEN}; font-weight: 600;">${text}</strong>`
             })
-            
+
             return (
-              <div 
-                key={lIndex} 
-                style={{ 
+              <div
+                key={lIndex}
+                style={{
                   marginBottom: lIndex < lines.length - 1 ? '4px' : '0',
                   color: safeColors.textPrimary,
-                  fontSize: '14px',
-                  lineHeight: '1.5'
+                  fontSize: '13px',
+                  lineHeight: '1.6',
+                  fontFamily: MONO
                 }}
                 dangerouslySetInnerHTML={{ __html: formattedLine }}
               />
@@ -169,106 +164,123 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
   }
 
   const isUser = message.type === 'user'
-  
+
   return (
-    <div 
+    <div
       ref={messageRef}
       style={{
         display: 'flex',
         justifyContent: isUser ? 'flex-end' : 'flex-start',
-        marginBottom: '16px',
+        marginBottom: '14px',
         animation: 'fadeIn 0.3s ease-out'
       }}
     >
       <div style={{
-        maxWidth: '85%',
+        maxWidth: '88%',
         display: 'flex',
-        flexDirection: isUser ? 'row-reverse' : 'row',
-        alignItems: 'flex-start',
-        gap: '8px'
+        flexDirection: 'column',
+        alignItems: isUser ? 'flex-end' : 'flex-start',
+        gap: '4px'
       }}>
-        {/* Avatar */}
-        {!isUser && (
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${safeColors.primaryColor}, ${safeColors.secondaryColor})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '16px',
-            flexShrink: 0,
-            marginTop: '2px'
-          }}>
-            🤖
-          </div>
-        )}
-        
-        {/* Message bubble */}
+        {/* Label */}
         <div style={{
-          background: isUser 
-            ? `linear-gradient(135deg, ${safeColors.primaryColor}, ${safeColors.secondaryColor})`
-            : safeColors.cardBg,
-          color: isUser ? '#fff' : safeColors.textPrimary,
-          padding: '12px 16px',
-          borderRadius: isUser ? '18px 18px 6px 18px' : '18px 18px 18px 6px',
-          border: isUser ? 'none' : `1px solid ${safeColors.cardBorder}`,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          fontSize: '10px',
+          color: isUser ? GREEN : FAINT,
+          fontFamily: MONO,
+          letterSpacing: '0.06em'
+        }}>
+          {isUser ? 'user@hc' : 'ai@hc'}
+        </div>
+
+        {/* Message block */}
+        <div style={{
+          background: isUser ? 'rgba(0,255,65,0.08)' : 'rgba(0,255,65,0.02)',
+          color: isUser ? '#ffffff' : safeColors.textPrimary,
+          padding: '10px 14px',
+          borderRadius: '4px',
+          border: `1px solid ${isUser ? BORDER : BORDER_DIM}`,
+          boxShadow: 'none',
           position: 'relative',
           wordWrap: 'break-word',
-          fontFamily: "'Inter', 'Poppins', Arial, sans-serif"
+          fontFamily: MONO,
+          textAlign: 'left'
         }}>
           {isUser ? (
-            <div style={{ 
-              fontSize: '14px', 
-              lineHeight: '1.4',
-              color: 'inherit'
+            <div style={{
+              fontSize: '13px',
+              lineHeight: '1.5',
+              color: 'inherit',
+              fontFamily: MONO
             }}>
+              <span style={{ color: GREEN, marginRight: '6px' }}>{'>'}</span>
               {message.content}
             </div>
           ) : (
-            <div style={{ 
-              fontSize: '14px', 
-              lineHeight: '1.5',
-              color: safeColors.textPrimary
+            <div style={{
+              fontSize: '13px',
+              lineHeight: '1.6',
+              color: safeColors.textPrimary,
+              fontFamily: MONO
             }}>
               {formatText(displayedText)}
               {isTyping && (
                 <span style={{
                   display: 'inline-block',
-                  width: '2px',
-                  height: '16px',
-                  background: safeColors.primaryColor,
-                  marginLeft: '2px',
+                  width: '6px',
+                  height: '14px',
+                  background: GREEN,
+                  marginLeft: '3px',
+                  verticalAlign: 'text-bottom',
                   animation: 'cursorBlink 1s infinite'
                 }} />
               )}
             </div>
           )}
+          {!isUser && Array.isArray(message.sources) && message.sources.length > 0 && (
+            <div style={{
+              marginTop: '10px',
+              borderTop: `1px solid ${BORDER_DIM}`,
+              paddingTop: '8px'
+            }}>
+              <div style={{
+                fontSize: '10px',
+                color: FAINT,
+                fontFamily: MONO,
+                letterSpacing: '0.06em',
+                marginBottom: '4px'
+              }}>
+                ◎ sources
+              </div>
+              {message.sources.map((source, index) => (
+                <div key={index} style={{
+                  marginBottom: '4px',
+                  fontSize: '12px',
+                  fontFamily: MONO,
+                  lineHeight: '1.5'
+                }}>
+                  <span style={{ color: GREEN }}>▸ </span>
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: GREEN,
+                      fontFamily: MONO,
+                      fontSize: '12px',
+                      textDecoration: 'none',
+                      wordWrap: 'break-word'
+                    }}
+                  >
+                    {source.title}
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        
-        {/* User avatar */}
-        {isUser && (
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: safeColors.cardBorder,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '16px',
-            flexShrink: 0,
-            marginTop: '2px',
-            color: safeColors.textSecondary
-          }}>
-            👤
-          </div>
-        )}
       </div>
     </div>
   )
 }
 
-export default ChatMessage 
+export default ChatMessage

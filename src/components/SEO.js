@@ -19,7 +19,7 @@ const SEO = ({
   // Default values using resume data
   const siteTitle = `${resumeData.name} - ${resumeData.title}`;
   const defaultDescription = resumeData.summary;
-  const defaultImage = `${siteUrl}/og-image.jpg`;
+  const defaultImage = `${siteUrl}/og-image.png`;
   const defaultKeywords = [
     resumeData.name,
     resumeData.title,
@@ -100,8 +100,8 @@ const SEO = ({
 
       {/* Twitter Meta Tags */}
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:site" content="@himanshuc_dev" />
-      <meta name="twitter:creator" content="@himanshuc_dev" />
+      <meta name="twitter:site" content="@himanshuchaudhary" />
+      <meta name="twitter:creator" content="@himanshuchaudhary" />
       <meta name="twitter:title" content={finalTitle} />
       <meta name="twitter:description" content={finalDescription} />
       <meta name="twitter:image" content={finalImage} />
@@ -109,8 +109,8 @@ const SEO = ({
 
       {/* Mobile and Responsive */}
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-      <meta name="theme-color" content="#00e6fe" />
-      <meta name="color-scheme" content="light dark" />
+      <meta name="theme-color" content="#000000" />
+      <meta name="color-scheme" content="dark" />
       <meta name="mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -131,13 +131,10 @@ const SEO = ({
       {/* Preconnect to External Domains */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="preconnect" href="https://api.github.com" />
-      <link rel="preconnect" href="https://vercel.live" />
 
       {/* DNS Prefetch for Performance */}
       <link rel="dns-prefetch" href="//fonts.googleapis.com" />
       <link rel="dns-prefetch" href="//fonts.gstatic.com" />
-      <link rel="dns-prefetch" href="//api.github.com" />
 
       {/* Structured Data */}
       <script type="application/ld+json">
