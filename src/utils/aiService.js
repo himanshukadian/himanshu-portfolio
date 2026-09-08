@@ -196,7 +196,7 @@ class AIService {
        /senior|junior|lead|principal.*engineer/i.test(userQuery))
 
     const hasResumeIntent = /resume|cv|customize|tailor|apply/i.test(userQuery)
-    const hasMeetingIntent = /meet|schedule|call|discuss|talk|connect|appointment/i.test(userQuery)
+    const hasMeetingIntent = /meet|meeting|schedule|call|discuss|talk|connect|appointment|slot|avail|availability|book|calendar|timezone|free\s+time|when are you free|open\s+(for|to)\b/i.test(userQuery)
     const hasWritingIntent = /writing|writings|articles|article|blog|latest post|published|tutorials|tutorial|what have you written|your articles|your blog|mcp|rag|distributed systems|price ?iq|cli automation|ai agents|use tools/i.test(userQuery)
 
     let category = 'portfolio_info'
@@ -220,7 +220,7 @@ class AIService {
       indicators: {
         isLongQuery: queryLength > 100,
         hasJobKeywords: /job|position|role|hiring|candidate/i.test(userQuery),
-        hasMeetingKeywords: /meet|call|schedule|discuss|talk/i.test(userQuery),
+        hasMeetingKeywords: /meet|meeting|schedule|call|discuss|talk|appointment|slot|availability|book|calendar|timezone|free\s+time|when are you free/i.test(userQuery),
         hasResumeKeywords: /resume|cv|customize|tailor|apply/i.test(userQuery),
         hasWritingKeywords: /writing|articles|blog|latest post|published|tutorials|mcp|rag|distributed systems|price ?iq|cli automation|ai agents|use tools/i.test(userQuery)
       }
@@ -329,7 +329,7 @@ class AIService {
             .slice(0, 5)
             .map((slot, index) => `${index + 1}. ${slot.display} (${slot.timezone || 'IST'})`)
             .join('\n')
-          query = `Himanshu's REAL currently available meeting slots (IST):\n${slotLines}\n\nIf the user wants to book, suggest one of these exact times.\n\nUser: ${userQuery}`
+          query = `Himanshu's REAL currently available meeting slots (${slotsData.availableSlots[0].timezone || 'IST'}):\n${slotLines}\n\nWhen discussing availability, follow these rules strictly:\n- ONLY recommend times from the exact list above. Never invent slots, weekday patterns, or "typical availability".\n- If the user wants to book, give them this exact link: https://calendly.com/himanshu-c-official/30min\n- Do not mention any timezone, location, or availability that is not in the list above.\n\nUser: ${userQuery}`
           devLog(`📅 Injected ${slotsData.availableSlots.length} real Calendly slots into meeting query`)
         }
       } catch (slotError) {
