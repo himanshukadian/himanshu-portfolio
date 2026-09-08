@@ -501,28 +501,6 @@ const startHalo = useCallback(() => {
     [push, slotList, showSuggestionsRow]
   );
 
-  const bookMeeting = useCallback(
-    async (line) => {
-      const lineStr = String(line || "").trim();
-      const emailMatch = lineStr.match(/^(.*?)\s+([^\s@]+@[^\s@]+)\s*$/);
-      const name = emailMatch ? emailMatch[1].trim().replace(/\s{2,}/g, " ") : lineStr.replace(/\s{2,}/g, " ");
-      const email = (emailMatch ? emailMatch[2] : "").replace(/<|>|,/g, "");
-      if (!name) {
-        push("⚠️ please provide at least your name, e.g. 'Priya Kumar'", "err");
-        return;
-      }
-      if (!email) {
-        pendingMeetingRef.current = { name };
-        setSchedulingMsg("email");
-        push(`✓ name: ${name}`, "suc");
-        push("📧 email is required for the Calendly confirmation — type your email address:", "sec");
-        return;
-      }
-      finishMeetingBooking(name, email);
-    },
-    [push, finishMeetingBooking]
-  );
-
   const finishMeetingBooking = useCallback(
     async (name, email) => {
       const slot = meetingSlotRef.current;
@@ -591,6 +569,28 @@ const startHalo = useCallback(() => {
       }
     },
     [push, showSuggestionsRow]
+  );
+
+  const bookMeeting = useCallback(
+    async (line) => {
+      const lineStr = String(line || "").trim();
+      const emailMatch = lineStr.match(/^(.*?)\s+([^\s@]+@[^\s@]+)\s*$/);
+      const name = emailMatch ? emailMatch[1].trim().replace(/\s{2,}/g, " ") : lineStr.replace(/\s{2,}/g, " ");
+      const email = (emailMatch ? emailMatch[2] : "").replace(/<|>|,/g, "");
+      if (!name) {
+        push("⚠️ please provide at least your name, e.g. 'Priya Kumar'", "err");
+        return;
+      }
+      if (!email) {
+        pendingMeetingRef.current = { name };
+        setSchedulingMsg("email");
+        push(`✓ name: ${name}`, "suc");
+        push("📧 email is required for the Calendly confirmation — type your email address:", "sec");
+        return;
+      }
+      finishMeetingBooking(name, email);
+    },
+    [push, finishMeetingBooking]
   );
 
   const handleResumeTarget = useCallback(
