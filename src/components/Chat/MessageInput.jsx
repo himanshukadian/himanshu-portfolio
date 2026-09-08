@@ -6,12 +6,14 @@ const DIM = 'rgba(255,255,255,0.5)'
 const BORDER = 'rgba(0,255,65,0.25)'
 const BORDER_DIM = 'rgba(0,255,65,0.12)'
 
+const MAX_MESSAGE_LENGTH = 4000
+
 const MessageInput = ({ onSendMessage, disabled, colors }) => {
   const [message, setMessage] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const textareaRef = useRef(null)
+  const recognitionRef = useRef(null)
 
-  // Terminal color scheme
   const safeColors = colors || {
     textPrimary: '#ffffff',
     textSecondary: DIM,
@@ -22,7 +24,6 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
     secondaryColor: GREEN
   }
 
-  // Auto-resize textarea
   const adjustTextareaHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -34,13 +35,37 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
     adjustTextareaHeight()
   }, [message, adjustTextareaHeight])
 
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort()
+        } catch (e) {
+          void e
+        }
+        recognitionRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (disabled && recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch (e) {
+        void e
+      }
+      recognitionRef.current = null
+      setIsRecording(false)
+    }
+  }, [disabled])
+
   const handleSubmit = useCallback((e) => {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     if (message.trim() && !disabled) {
       try {
-        onSendMessage(message.trim())
+        onSendMessage(message.trim().slice(0, MAX_MESSAGE_LENGTH))
         setMessage('')
-        // Reset textarea height
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto'
         }
@@ -50,7 +75,7 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
     }
   }, [message, disabled, onSendMessage])
 
-  const handleKeyPress = useCallback((e) => {
+  const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit(e)
@@ -58,7 +83,10 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
   }, [handleSubmit])
 
   const handleInputChange = useCallback((e) => {
-    setMessage(e.target.value)
+    const value = e.target.value
+    if (value.length <= MAX_MESSAGE_LENGTH) {
+      setMessage(value)
+    }
   }, [])
 
   const handleVoiceClick = useCallback(() => {
@@ -71,6 +99,14 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
       }
 
       if (isRecording) {
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.stop()
+          } catch (e) {
+            void e
+          }
+        }
+        recognitionRef.current = null
         setIsRecording(false)
         return
       }
@@ -88,13 +124,14 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript
-        setMessage(prev => prev + (prev ? ' ' : '') + transcript)
+        setMessage(prev => (prev + (prev ? ' ' : '') + transcript).slice(0, MAX_MESSAGE_LENGTH))
         setIsRecording(false)
       }
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error)
         setIsRecording(false)
+        recognitionRef.current = null
         if (event.error === 'not-allowed') {
           alert('Microphone access denied. Please enable microphone permissions.')
         }
@@ -102,14 +139,20 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
 
       recognition.onend = () => {
         setIsRecording(false)
+        recognitionRef.current = null
       }
 
+      recognitionRef.current = recognition
       recognition.start()
     } catch (error) {
       console.error('Voice recognition error:', error)
       setIsRecording(false)
+      recognitionRef.current = null
     }
   }, [disabled, isRecording])
+
+  const charCount = message.length
+  const canSend = charCount > 0 && !disabled
 
   return (
     <div style={{ position: 'relative' }}>
@@ -118,7 +161,6 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
         alignItems: 'flex-end',
         gap: '8px'
       }}>
-        {/* Main Input Container */}
         <div style={{ flex: '1', position: 'relative' }}>
           <div style={{
             position: 'relative',
@@ -141,9 +183,10 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
               ref={textareaRef}
               value={message}
               onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               placeholder={isRecording ? 'recording...' : 'type message_'}
               disabled={disabled}
+              maxLength={MAX_MESSAGE_LENGTH}
               style={{
                 width: '100%',
                 background: 'transparent',
@@ -163,7 +206,6 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
               onBlur={(e) => e.target.parentElement.style.borderColor = isRecording ? GREEN : BORDER_DIM}
             />
 
-            {/* Voice Icon */}
             <button
               type="button"
               className="chat-mic-btn"
@@ -198,19 +240,33 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
               </svg>
             </button>
           </div>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: '3px',
+            paddingRight: '2px'
+          }}>
+            <span style={{
+              fontSize: '9px',
+              color: DIM,
+              fontFamily: MONO,
+              letterSpacing: '0.05em'
+            }}>
+              {charCount}/{MAX_MESSAGE_LENGTH}
+            </span>
+          </div>
         </div>
 
-        {/* Send Button */}
         <button
           type="submit"
-          disabled={!message.trim() || disabled}
+          disabled={!canSend}
           style={{
             padding: '10px 14px',
             borderRadius: '4px',
-            border: `1px solid ${message.trim() && !disabled ? GREEN : BORDER_DIM}`,
-            background: message.trim() && !disabled ? 'rgba(0,255,65,0.08)' : 'transparent',
-            color: message.trim() && !disabled ? GREEN : safeColors.textSecondary,
-            cursor: message.trim() && !disabled ? 'pointer' : 'not-allowed',
+            border: `1px solid ${canSend ? GREEN : BORDER_DIM}`,
+            background: canSend ? 'rgba(0,255,65,0.08)' : 'transparent',
+            color: canSend ? GREEN : safeColors.textSecondary,
+            cursor: canSend ? 'pointer' : 'not-allowed',
             transition: 'all 0.2s ease',
             display: 'flex',
             alignItems: 'center',
@@ -221,13 +277,13 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
             flexShrink: 0
           }}
           onMouseEnter={(e) => {
-            if (message.trim() && !disabled) {
+            if (canSend) {
               e.target.style.background = 'rgba(0,255,65,0.14)'
               e.target.style.boxShadow = '0 0 10px rgba(0,255,65,0.2)'
             }
           }}
           onMouseLeave={(e) => {
-            if (message.trim() && !disabled) {
+            if (canSend) {
               e.target.style.background = 'rgba(0,255,65,0.08)'
               e.target.style.boxShadow = 'none'
             }
@@ -238,7 +294,6 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
         </button>
       </form>
 
-      {/* Recording indicator */}
       {isRecording && (
         <div style={{
           position: 'absolute',

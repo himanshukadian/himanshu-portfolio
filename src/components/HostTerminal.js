@@ -149,6 +149,7 @@ function HostTerminal({ siteIframeRef }) {
   const inputRef = useRef(null);
   const bodyRef = useRef(null);
   const writingCacheRef = useRef(null);
+  const haloHistoryRef = useRef([]);
 
   const promptStr = `himanshu@portfolio:~${cwd.length ? "/" + cwd.join("/") : ""}$`;
   const haloPrompt = "halo@portfolio:~$";
@@ -191,12 +192,34 @@ function HostTerminal({ siteIframeRef }) {
         const res = await fetch(HALO_AI_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, chatHistory: [], resumeData }),
+          body: JSON.stringify({ query, chatHistory: haloHistoryRef.current }),
         });
-        if (!res.ok) throw new Error(`API ${res.status}`);
+        if (res.status === 429) {
+          setHaloLog([]);
+          push("💨 rate limited — wait a moment and try again", "err");
+          return;
+        }
+        if (!res.ok) {
+          let msg = "";
+          try {
+            const body = await res.json();
+            if (body && body.status === "error" && typeof body.message === "string") {
+              msg = body.message;
+            }
+          } catch (e) {
+            msg = "";
+          }
+          setHaloLog([]);
+          push(msg || "⚠️ Halo couldn't reach the assistant service — try again in a moment.", "err");
+          return;
+        }
         const data = await res.json();
         const text = data.data?.response || data.response || "";
-        if (!text) throw new Error("empty response");
+        if (!text) {
+          setHaloLog([]);
+          push("⚠️ Halo returned an empty response — try again.", "err");
+          return;
+        }
         setHaloLog([]);
         push("", "");
         pushBlock(text, "sec");
@@ -208,9 +231,13 @@ function HostTerminal({ siteIframeRef }) {
             push(`    ${s.url}`, "dim");
           });
         }
+        const h = haloHistoryRef.current;
+        h.push({ type: "user", content: query });
+        h.push({ type: "assistant", content: text });
+        haloHistoryRef.current = h.slice(-20);
       } catch (err) {
         setHaloLog([]);
-        push("⚠  HALO couldn't reach the assistant service. Try again.", "err");
+        push("⚠️ Halo couldn't reach the assistant service — try again in a moment.", "err");
       } finally {
         setHaloBusy(false);
       }
@@ -225,6 +252,11 @@ function HostTerminal({ siteIframeRef }) {
       push(`${haloPrompt} ${q}`, "cmd");
       if (/^(exit|quit|back)$/i.test(q)) {
         exitHalo();
+        return;
+      }
+      if (/^(reset)$/i.test(q)) {
+        haloHistoryRef.current = [];
+        push("halo conversation cleared", "suc");
         return;
       }
       askHalo(q);
@@ -262,6 +294,7 @@ function HostTerminal({ siteIframeRef }) {
     push("  open <file>  view a file or folder", "sec");
     push("  resume       open the resume PDF", "sec");
     push("  halo         ask the AI agent about Himanshu", "sec");
+    push("  halo reset   clear the HALO conversation", "sec");
     push("  writing [n]  list blog articles / open one", "sec");
     push("  help         show available commands", "sec");
     push("  exit         back to the website (or ESC)", "sec");
@@ -428,7 +461,9 @@ function HostTerminal({ siteIframeRef }) {
                     new Date(a.publishedAt)
                   )
                 : "—";
-              const tag = Array.isArray(a.tags) && a.tags.length ? a.tags[0] : a.tag || null;
+              const tag = Array.isArray(a.tags) && a.tags.length
+                  ? (typeof a.tags[0] === "string" ? a.tags[0] : a.tags[0]?.name)
+                  : a.tag || null;
               push(`     ${when}${tag ? ` · ${tag}` : ""}`, "sec");
             });
             push("use 'writing <n>' to open an article, e.g. 'writing 1'", "dim");
@@ -442,7 +477,9 @@ function HostTerminal({ siteIframeRef }) {
                 const res = await fetch(ARTICLES_ENDPOINT);
                 if (!res.ok) throw new Error(`API ${res.status}`);
                 const body = await res.json();
-                const list = Array.isArray(body) ? body : body.articles || [];
+                const raw =
+                  body?.data?.articles ?? body?.payload?.articles ?? body?.articles ?? body;
+                const list = Array.isArray(raw) ? raw : [];
                 articles = list.filter((a) => a.slug);
                 articles.sort((a, b) =>
                   a.publishedAt && b.publishedAt
@@ -605,12 +642,12 @@ function HostTerminal({ siteIframeRef }) {
   }, [open, openTerminal]);
 
   useEffect(() => {
-    if (open && inputRef.current) inputRef.current.focus();
-  }, [open]);
+    if (open && inputRef.current && !haloBusy) inputRef.current.focus();
+  }, [open, haloBusy]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [lines, typed]);
+  }, [lines, typed, haloLog, haloBusy]);
 
   if (!open) return null;
 
@@ -677,16 +714,19 @@ function HostTerminal({ siteIframeRef }) {
         )}
 
         <div className="k9s-palette-line">
-          <span className="k9s-palette-prompt">{haloMode ? haloPrompt : promptStr}</span>
+          <span className="k9s-palette-prompt">
+              {haloMode ? (haloBusy ? `${haloPrompt} (busy…)` : haloPrompt) : promptStr}
+            </span>
           <input
             ref={inputRef}
             className="k9s-palette-input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onInputKey}
-            placeholder={haloMode ? "ask HALO about Himanshu…" : "type a command…"}
+            placeholder={haloMode ? (haloBusy ? "HALO is thinking…" : "ask HALO about Himanshu…") : "type a command…"}
             spellCheck={false}
             autoComplete="off"
+            disabled={haloBusy}
             aria-label={haloMode ? "HALO question input" : "Command input"}
           />
           <span className="k9s-palette-hints">

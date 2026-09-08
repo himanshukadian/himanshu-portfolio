@@ -1,111 +1,218 @@
-import { resumeData } from '../data/resume.js'
 import resumeService from './resumeService.js'
 import devLog from './devLog.js'
+
+const REQUEST_TIMEOUT_MS = 60000
+const RATE_LIMIT_MESSAGE = "You're sending messages too quickly — give me a moment 😉"
 
 class AIService {
   constructor() {
     this.backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://himanshu-portfolio-api-e10b4543a453.herokuapp.com'
-    this.apiEndpoint = `${this.backendUrl}/api/ai/chat`
-    this.healthEndpoint = `${this.backendUrl}/api/ai/health`
-    this.isModelLoaded = true // Assume backend is available
-    this.modelType = 'backend-ai'
-    this.fallbackToRules = false
-    this.isLoading = false
-    this.lastWritingSources = []
-    
-    // Check backend health on initialization
-    this.checkBackendHealth()
-    
+    this.chatEndpoint = `${this.backendUrl}/api/ai/chat`
+    this.streamEndpoint = `${this.backendUrl}/api/ai/stream`
+    this.online = true
+    this.lastMeetingSuggestion = null
+
     devLog('✅ AI Assistant ready with backend API')
     devLog(`🚀 Backend URL: ${this.backendUrl}`)
   }
 
-  // Enhanced AI response with smart query categorization and routing
-  async generateResponse(userQuery, chatHistory = []) {
+  getOnline() {
+    return this.online
+  }
+
+  getOfflineFallback() {
+    return this.generateRuleBasedResponse()
+  }
+
+  async generateResponse(userQuery, chatHistory = [], opts = {}) {
     try {
-      this.isLoading = true
-      
-      devLog('🎯 Smart Query Analysis:', userQuery.substring(0, 100) + '...')
-      
-      // Step 1: Analyze query intent and categorize
-      const queryAnalysis = this.categorizeQuery(userQuery, chatHistory)
-      devLog('📊 Query Category:', queryAnalysis.category, 'Confidence:', queryAnalysis.confidence)
-      
-      let response
-      
-      // Step 2: Route to appropriate specialized handler
-      switch (queryAnalysis.category) {
+      const analysis = this.categorizeQuery(userQuery)
+
+      let result
+      switch (analysis.category) {
         case 'resume_customization':
-          devLog('🎯 Routing to Resume Customization Handler')
-          response = await this.handleResumeQuery(userQuery, chatHistory, queryAnalysis)
+          result = await this.handleResumeQuery(userQuery, chatHistory, analysis, opts)
           break
-          
         case 'meeting_scheduling':
-          devLog('📅 Routing to Meeting Scheduling Handler') 
-          response = await this.handleMeetingQuery(userQuery, chatHistory, queryAnalysis)
+          result = await this.handleMeetingQuery(userQuery, chatHistory, analysis, opts)
           break
-          
         case 'writing':
-          devLog('✍️ Routing to Writing Handler')
-          response = await this.generateWritingResponse(userQuery)
+          result = await this.generateWritingResponse(userQuery, chatHistory, opts)
           break
-          
         case 'portfolio_info':
         default:
-          devLog('💼 Routing to Portfolio Information Handler')
-          response = await this.handlePortfolioQuery(userQuery, chatHistory, queryAnalysis)
+          result = await this.handlePortfolioQuery(userQuery, chatHistory, analysis, opts)
           break
       }
-      
-      // Step 3: Post-process for additional suggestions (only for portfolio queries)
-      if (queryAnalysis.category === 'portfolio_info') {
-        response = await this.addContextualSuggestions(response, userQuery, chatHistory)
-      }
 
-      return response
+      return this.normalizeResult(Object.assign({}, result, {
+        suggestions: Array.isArray(result.suggestions) && result.suggestions.length
+          ? result.suggestions
+          : this.getSuggestions(analysis.category, userQuery)
+      }))
     } catch (error) {
       console.error('❌ AI response generation failed:', error)
-      return this.generateFallbackResponse(userQuery, error)
-    } finally {
-      this.isLoading = false
+      if (error && error.name === 'AbortError') throw error
+      if (error && error.kind === 'rate_limit') throw error
+      if (error && (error.kind === 'offline' || error.kind === 'stream')) {
+        return this.normalizeResult(this.getOfflineFallback())
+      }
+      const fallback = this.generateRuleBasedResponse()
+      if (error && error.kind === 'backend' && error.message) {
+        fallback.text = error.message
+      }
+      return this.normalizeResult(fallback)
     }
   }
 
-  // Simplified query categorization - minimal pattern matching for routing only
-  categorizeQuery(userQuery, chatHistory = []) {
-    const query = userQuery.toLowerCase().trim()
+  async streamResponse(userQuery, chatHistory = [], { onDelta, signal } = {}) {
+    const req = this.prepareRequest(signal)
+    let startPayload = null
+    let accumulated = ''
+    let deltaCount = 0
+    let streamFailed = false
+    let failureMessage = ''
+
+    try {
+      const response = await fetch(this.streamEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: userQuery,
+          chatHistory: chatHistory
+        }),
+        signal: req.controller.signal
+      })
+
+      if (response.status === 429) {
+        const rateErr = new Error(RATE_LIMIT_MESSAGE)
+        rateErr.kind = 'rate_limit'
+        throw rateErr
+      }
+
+      if (!response.ok) {
+        const err = new Error(await this.readErrorMessage(response) || `Backend stream request failed: ${response.status}`)
+        err.kind = 'backend'
+        throw err
+      }
+
+      if (!response.body) throw new Error('Streaming not supported by response')
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        let newlineIndex
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          const rawLine = buffer.slice(0, newlineIndex).trim()
+          buffer = buffer.slice(newlineIndex + 1)
+          if (!rawLine.startsWith('data:')) continue
+
+          const payload = rawLine.replace(/^data:\s*/, '').trim()
+          if (!payload) continue
+
+          let event
+          try {
+            event = JSON.parse(payload)
+          } catch (e) {
+            continue
+          }
+
+          if (event.type === 'start') {
+            startPayload = {
+              model: typeof event.model === 'string' ? event.model : '',
+              sources: Array.isArray(event.sources) ? event.sources : []
+            }
+          } else if (event.type === 'delta') {
+            accumulated += typeof event.text === 'string' ? event.text : ''
+            deltaCount += 1
+            if (typeof onDelta === 'function') onDelta(accumulated)
+          } else if (event.type === 'done') {
+            if (!startPayload) {
+              startPayload = {
+                model: typeof event.model === 'string' ? event.model : '',
+                sources: Array.isArray(event.sources) ? event.sources : []
+              }
+            }
+          } else if (event.type === 'error') {
+            streamFailed = true
+            failureMessage = typeof event.message === 'string' && event.message ? event.message : 'Backend stream failed'
+            break
+          }
+        }
+
+        if (streamFailed) break
+      }
+
+      buffer += decoder.decode()
+
+      if (streamFailed) {
+        const err = new Error(failureMessage)
+        err.kind = 'stream'
+        throw err
+      }
+
+      if (deltaCount === 0) throw new Error('No text received from backend stream')
+
+      this.online = true
+      const category = this.categorizeQuery(userQuery).category
+      return {
+        text: accumulated,
+        sources: (startPayload && startPayload.sources) || [],
+        contextUsed: true,
+        suggestions: this.getSuggestions(category, userQuery),
+        model: (startPayload && startPayload.model) || '',
+        fellback: false
+      }
+    } catch (error) {
+      if (req.isExternalAbort()) throw error
+      this.online = false
+      if (error && error.kind) throw error
+      if (error && error.name === 'AbortError') {
+        const offlineErr = new Error('Stream request timed out')
+        offlineErr.kind = 'offline'
+        throw offlineErr
+      }
+      const wrapped = new Error(error && error.message ? error.message : 'Stream request failed')
+      wrapped.kind = 'offline'
+      throw wrapped
+    } finally {
+      req.cleanup()
+    }
+  }
+
+  categorizeQuery(userQuery) {
     const queryLength = userQuery.length
-    
-    // Very simple routing logic - let AI handle the detailed understanding
-    
-    // Resume: Long queries with job-related keywords likely job descriptions
-    const isLikelyJobDescription = queryLength > 100 && 
+
+    const isLikelyJobDescription = queryLength > 100 &&
       (/job|position|role|requirements|responsibilities|candidate|hiring/i.test(userQuery) ||
        /senior|junior|lead|principal.*engineer/i.test(userQuery))
-    
+
     const hasResumeIntent = /resume|cv|customize|tailor|apply/i.test(userQuery)
-    
-    // Meeting: Direct meeting/scheduling keywords  
     const hasMeetingIntent = /meet|schedule|call|discuss|talk|connect|appointment/i.test(userQuery)
-    
-    // Writing: Queries about articles/blog/posts/tutorials/content he has published
     const hasWritingIntent = /writing|writings|articles|article|blog|latest post|published|tutorials|tutorial|what have you written|your articles|your blog|mcp|rag|distributed systems|price ?iq|cli automation|ai agents|use tools/i.test(userQuery)
-    
-    // Simple scoring
-    let category = 'portfolio_info' // Default
+
+    let category = 'portfolio_info'
     let confidence = 0.6
-    
+
     if (isLikelyJobDescription || hasResumeIntent) {
       category = 'resume_customization'
       confidence = 0.9
     } else if (hasMeetingIntent) {
-      category = 'meeting_scheduling'  
+      category = 'meeting_scheduling'
       confidence = 0.8
     } else if (hasWritingIntent) {
       category = 'writing'
       confidence = 0.85
     }
-    
+
     return {
       category,
       confidence,
@@ -120,110 +227,136 @@ class AIService {
     }
   }
 
-  // Specialized handler for resume customization queries - AI-powered
-  async handleResumeQuery(userQuery, chatHistory, analysis) {
+  getSuggestions(category, query) {
+    const mentionsMeeting = this.shouldSuggestMeeting(query)
+    if (category === 'writing') {
+      return mentionsMeeting
+        ? ["let's set up a meeting", 'all posts', 'summarize the AI agents article']
+        : ['all posts', 'summarize the AI agents article']
+    }
+    const base = ['show me all your projects', 'customize my resume']
+    return mentionsMeeting
+      ? ["let's set up a meeting", ...base]
+      : [...base, "let's set up a meeting"]
+  }
+
+  shouldSuggestMeeting(query) {
+    return /meet|call|chat|connect|schedule|setup/i.test(query)
+  }
+
+  async handleResumeQuery(userQuery, chatHistory, analysis, opts) {
     try {
-      devLog('🎯 Processing resume customization request with AI')
-      
-      // Let AI determine if this is a job description or just asking about resume services
       if (analysis.queryLength > 50) {
-        // Likely a job description - process directly
-        const jobDetails = {
-          jobDescription: userQuery,
-          companyName: '',  // Let AI extract
-          jobTitle: '',     // Let AI extract  
-          hasRequiredInfo: true
-        }
-        
-        return await this.processResumeCustomization(jobDetails)
-      } else {
-        // Short query - use AI to generate helpful resume information
-        try {
-          const response = await this.generateAPIResponse(userQuery, chatHistory)
-          return response
-        } catch (error) {
-          devLog('🔄 AI failed, using simple resume fallback')
-          return this.requestJobDescription()
-        }
+        return await this.processResumeCustomization(userQuery)
       }
-      
+      try {
+        return await this.generateAPIResponse(userQuery, chatHistory, opts)
+      } catch (error) {
+        devLog('🔄 AI failed for short resume query, using resume fallback')
+        return this.requestJobDescription()
+      }
     } catch (error) {
       console.error('❌ Resume handler error:', error)
-      return this.generateSimpleFallback(userQuery)
+      return this.generateRuleBasedResponse()
     }
   }
 
-  // Specialized handler for meeting/scheduling queries - AI-powered
-  async handleMeetingQuery(userQuery, chatHistory, analysis) {
+  requestJobDescription() {
+    return {
+      text: '🎯 **Resume Customization Service**\n\n' +
+            'I can create a customized resume for any job! To get started:\n\n' +
+            '📋 **Just paste the full job description** and I\'ll:\n' +
+            '• Extract company and position details using AI\n' +
+            '• Analyze job requirements intelligently\n' +
+            '• Customize the resume content accordingly\n' +
+            '• Generate a professional PDF download\n\n' +
+            '**Example:** Simply paste the entire job posting text here!',
+      fellback: true,
+      suggestions: ['customize my resume'],
+      model: 'resume-fallback'
+    }
+  }
+
+  async processResumeCustomization(jobDescription) {
+    try {
+      devLog('🚀 Processing AI-powered resume customization')
+      const result = await resumeService.customizeAndGeneratePDF({
+        jobDescription: jobDescription,
+        companyName: '',
+        jobTitle: ''
+      })
+
+      const atsScore = result.customization?.data?.atsScore
+      const matchPercentage = result.customization?.data?.matchPercentage
+      const fileSize = result.pdf?.data?.fileSize
+      const sizeLabel = typeof fileSize === 'number' ? ` (${(fileSize / 1024).toFixed(1)}KB)` : ''
+
+      const text =
+        `✅ **AI Resume Customization Complete!**\n\n` +
+        `**ATS Score:** ${atsScore ?? 'N/A'}%\n` +
+        `**Match Percentage:** ${matchPercentage ?? 'N/A'}%\n` +
+        `**Download:** [📄 ${result.fileName}](${result.downloadUrl})${sizeLabel}\n\n` +
+        `**Optimized with:** AI-powered content analysis, smart skill highlighting, ATS-compatible formatting, professional typography, and intelligent customization tailored to the role.`
+
+      return {
+        text,
+        fellback: false,
+        suggestions: [],
+        model: 'resume-service'
+      }
+    } catch (error) {
+      console.error('Resume customization failed:', error)
+      return {
+        text: `❌ **Resume customization failed:** ${error && error.message ? error.message : 'Please try again later.'}`,
+        fellback: true,
+        suggestions: ['customize my resume'],
+        model: 'resume-fallback'
+      }
+    }
+  }
+
+  async handleMeetingQuery(userQuery, chatHistory, analysis, opts) {
     try {
       devLog('📅 Processing meeting request with AI')
-      
-      // First try to get AI-powered meeting suggestion
-      try {
-        const meetingSuggestion = await this.checkMeetingSuggestion(userQuery, chatHistory)
-        if (meetingSuggestion && meetingSuggestion.shouldSuggest) {
-          this.lastMeetingSuggestion = meetingSuggestion
-          
-          // Let AI generate the response with meeting context
-          const aiResponse = await this.generateAPIResponse(userQuery, chatHistory)
-          return aiResponse + `\n\n📞 ${meetingSuggestion.autoMessage}`
-        }
-      } catch (error) {
-        devLog('🔄 Meeting API failed, using AI response only')
-      }
-      
-      // Use AI to generate meeting response
-      try {
-        const response = await this.generateAPIResponse(userQuery, chatHistory)
-        return response
-      } catch (error) {
-        devLog('🔄 AI failed, using simple meeting fallback')
-        return '📅 **Let\'s Schedule a Meeting!**\n\n' +
-               'I\'d love to connect! You can reach me at:\n' +
-               '• Email: himanshu.c.official@gmail.com\n' +
-               '• LinkedIn: https://www.linkedin.com/in/himanshucofficial/\n\n' +
-               '💬 Or continue chatting here and I\'ll help coordinate a time!'
-      }
-      
+      return await this.generateAPIResponse(userQuery, chatHistory, opts)
     } catch (error) {
-      console.error('❌ Meeting handler error:', error)
-      return this.generateSimpleFallback(userQuery)
+      devLog('🔄 AI failed for meeting query, using meeting fallback')
+      return {
+        text: '📅 **Let\'s Schedule a Meeting!**\n\n' +
+              'I\'d love to connect! You can reach me at:\n' +
+              '• Email: himanshu.c.official@gmail.com\n' +
+              '• LinkedIn: https://www.linkedin.com/in/himanshucofficial/\n\n' +
+              '💬 Or continue chatting here and I\'ll help coordinate a time!',
+        fellback: true,
+        suggestions: ["let's set up a meeting"],
+        model: 'meeting-fallback'
+      }
     }
   }
 
-  // Specialized handler for portfolio information queries
-  async handlePortfolioQuery(userQuery, chatHistory, analysis) {
+  async handlePortfolioQuery(userQuery, chatHistory, analysis, opts) {
     try {
       devLog('💼 Processing portfolio information request with AI')
-      
-      // Always try AI first - this is the primary method
-      try {
-        const response = await this.generateAPIResponse(userQuery, chatHistory)
-        return response
-      } catch (error) {
-        devLog('🔄 AI failed, trying simple fallback')
-        return this.generateSimpleFallback(userQuery)
-      }
-      
+      return await this.generateAPIResponse(userQuery, chatHistory, opts)
     } catch (error) {
-      console.error('❌ Portfolio handler error:', error)
-      return this.generateSimpleFallback(userQuery)
+      devLog('🔄 AI failed for portfolio query, using fallback')
+      return this.generateRuleBasedResponse()
     }
   }
 
-  // Specialized handler for writing/articles queries
-  async generateWritingResponse(query) {
+  async generateWritingResponse(query, chatHistory, opts) {
     try {
       devLog('✍️ Processing writing request with AI')
-      const response = await this.generateAPIResponse(query, [])
-      return response
+      return await this.generateAPIResponse(query, chatHistory, opts)
     } catch (error) {
       devLog('🔄 AI failed for writing, using article list fallback')
     }
 
+    const req = this.prepareRequest(opts && opts.signal)
     try {
       const articlesResponse = await fetch(`${this.backendUrl}/api/articles`, {
-        method: 'GET'
+        method: 'GET',
+        signal: req.controller.signal
       })
 
       if (!articlesResponse.ok) {
@@ -242,199 +375,168 @@ class AIService {
         .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
         .slice(0, 5)
 
-      let response = "I could not reach the AI, but here are Himanshu's latest writing:"
-      articles.forEach((article, index) => {
+      const lines = articles.map((article) => {
         const monthYear = new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        response += `\n▪ ${article.title} — https://blog.buildwithhimanshu.com/${article.slug} (${monthYear})`
+        return `▪ ${article.title} — https://blog.buildwithhimanshu.com/${article.slug} (${monthYear})`
       })
 
-      return response
+      return {
+        text: `I could not reach the AI, but here are Himanshu's latest writing:\n\n${lines.join('\n')}`,
+        sources: [],
+        contextUsed: false,
+        suggestions: ['all posts', 'summarize the AI agents article'],
+        model: 'articles-fallback',
+        fellback: true
+      }
     } catch (error) {
       devLog('🔄 Article fetch failed, using simple fallback')
-      return this.generateSimpleFallback(query)
+      return this.generateRuleBasedResponse()
+    } finally {
+      req.cleanup()
     }
   }
 
-  // Add contextual suggestions based on the conversation
-  async addContextualSuggestions(response, userQuery, chatHistory) {
-    try {
-      // Check if we should suggest a meeting (only for portfolio queries)
-      const shouldCheckMeeting = this.shouldSuggestMeeting(userQuery, chatHistory, response)
-      
-      if (shouldCheckMeeting) {
-        try {
-          const meetingSuggestion = await this.checkMeetingSuggestion(userQuery, chatHistory)
-          if (meetingSuggestion && meetingSuggestion.shouldSuggest) {
-            response += `\n\n📅 ${meetingSuggestion.autoMessage}`
-            this.lastMeetingSuggestion = meetingSuggestion
-          }
-        } catch (error) {
-          console.error('Meeting suggestion failed:', error)
-        }
-      }
-      
-      // Add helpful suggestions based on query content
-      const query = userQuery.toLowerCase()
-      if (query.includes('project') && !query.includes('all')) {
-        response += '\n\n💡 **Tip:** Ask "show me all your projects" to see both work and personal projects!'
-      } else if (query.includes('skill') && !query.includes('tech')) {
-        response += '\n\n💡 **Also available:** Resume customization service for job applications!'
-      }
-      
-      return response
-      
-    } catch (error) {
-      console.error('Failed to add contextual suggestions:', error)
-      return response
+  generateRuleBasedResponse() {
+    return {
+      text: "⚠️ My AI service is temporarily unreachable. Try again in a moment.",
+      sources: [],
+      contextUsed: false,
+      suggestions: ['show me all your projects', 'customize my resume', "let's set up a meeting"],
+      model: 'local-fallback',
+      fellback: true
     }
   }
 
-  // Simple fallback response without keyword matching - AI-first approach
-  generateFallbackResponse(userQuery, error) {
-    console.error('AI service unavailable, providing simple fallback:', error.message)
-    return this.generateSimpleFallback(userQuery)
-  }
-
-  // Simple fallback when AI is completely unavailable
-  generateSimpleFallback(userQuery) {
-    return `🤖 **AI Assistant Temporarily Unavailable**\n\n` +
-           `I'm currently having trouble connecting to my AI backend. ` +
-           `I can help you with:\n\n` +
-           `📄 **Resume Customization** - Paste job descriptions for AI-powered resume tailoring\n` +
-           `📅 **Meeting Scheduling** - Discuss opportunities and technical topics\n` +
-           `💼 **Portfolio Information** - Experience, skills, projects, and education\n\n` +
-           `**📧 Direct Contact:**\n` +
-           `• Email: himanshu.c.official@gmail.com\n` +
-           `• LinkedIn: https://www.linkedin.com/in/himanshucofficial/\n\n` +
-           `Please try your question again in a moment when AI service is restored! 🚀`
-  }
-
-  // Helper method for requesting job description
-  requestJobDescription() {
-    return '🎯 **Resume Customization Service**\n\n' +
-           'I can create a customized resume for any job! To get started:\n\n' +
-           '📋 **Just paste the full job description** and I\'ll:\n' +
-           '• Extract company and position details using AI\n' +
-           '• Analyze job requirements intelligently\n' +
-           '• Customize the resume content accordingly\n' +
-           '• Generate a professional PDF download\n\n' +
-           '**Example:** Simply paste the entire job posting text here!\n\n' +
-           '**✨ Features:**\n' +
-           '• AI-powered analysis\n' +
-           '• ATS optimization\n' +
-           '• Professional formatting\n' +
-           '• Instant PDF generation'
-  }
-
-  async generateAPIResponse(userQuery, chatHistory = []) {
-    devLog('🔥 Sending request to backend AI API...')
-    
+  async generateAPIResponse(userQuery, chatHistory = [], opts = {}) {
+    const req = this.prepareRequest(opts.signal)
     try {
-      const response = await fetch(this.apiEndpoint, {
+      const response = await fetch(this.chatEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           query: userQuery,
-          chatHistory: chatHistory,
-          resumeData: resumeData
-        })
+          chatHistory: chatHistory
+        }),
+        signal: req.controller.signal
       })
 
+      if (response.status === 429) {
+        const rateErr = new Error(RATE_LIMIT_MESSAGE)
+        rateErr.kind = 'rate_limit'
+        throw rateErr
+      }
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
-        throw new Error(`Backend API request failed: ${response.status} - ${errorData.message}`)
+        const err = new Error(await this.readErrorMessage(response) || `Backend API request failed: ${response.status}`)
+        err.kind = 'backend'
+        throw err
       }
 
       const data = await response.json()
-      this.lastWritingSources = data.data?.writingSources || []
-      const aiResponse = data.data?.response
-      
-      if (!aiResponse) {
+
+      if (data && data.status === 'error') {
+        const err = new Error(data.message || 'Backend returned an error')
+        err.kind = 'backend'
+        throw err
+      }
+
+      const text = data && data.data && data.data.response
+      if (typeof text !== 'string' || !text.trim()) {
         throw new Error('No response received from backend')
       }
-      
-      devLog('🤖 Backend AI Response:', aiResponse.substring(0, 100) + '...')
-      
-      return aiResponse
-      
+
+      this.online = true
+      const category = this.categorizeQuery(userQuery).category
+      return {
+        text,
+        sources: (data.data && data.data.writingSources) || [],
+        contextUsed: Boolean(data.data && data.data.contextUsed),
+        suggestions: this.getSuggestions(category, userQuery),
+        model: (data.data && data.data.model) || '',
+        fellback: false
+      }
     } catch (error) {
-      console.error('Backend AI response generation failed:', error)
-      devLog('🔄 Falling back to rule-based response')
-      return this.generateRuleBasedResponse(userQuery)
+      if (req.isExternalAbort()) throw error
+      this.online = false
+      if (error && error.kind) throw error
+      if (error && error.name === 'AbortError') {
+        const offlineErr = new Error('Request timed out')
+        offlineErr.kind = 'offline'
+        throw offlineErr
+      }
+      const wrapped = new Error(error && error.message ? error.message : 'Backend request failed')
+      wrapped.kind = 'offline'
+      throw wrapped
+    } finally {
+      req.cleanup()
     }
   }
 
-  // AI-ONLY approach - no keyword matching
-  generateRuleBasedResponse(query) {
-    devLog(`🤖 AI-first approach - forwarding to backend: "${query}"`)
-    
-    // Always try to use AI backend first
-    return this.generateAPIResponse(query, []).catch(error => {
-      devLog('🔄 AI backend unavailable, using simple fallback')
-      return this.generateSimpleFallback(query)
-    })
-  }
+  prepareRequest(externalSignal) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    const state = { externalAborted: false }
+    let removeListener = null
 
-  // Check if conversation context suggests scheduling a meeting
-  shouldSuggestMeeting(userQuery, chatHistory, aiResponse) {
-    devLog('🔍 Checking meeting suggestion for query:', userQuery)
-    
-    // Don't suggest if we already suggested recently
-    if (this.lastMeetingSuggestion && 
-        Date.now() - this.lastMeetingSuggestion.timestamp < 300000) { // 5 minutes
-      devLog('❌ Not suggesting - recently suggested')
-      return false
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        state.externalAborted = true
+        controller.abort()
+      } else {
+        const onAbort = () => {
+          state.externalAborted = true
+          controller.abort()
+        }
+        externalSignal.addEventListener('abort', onAbort)
+        removeListener = () => externalSignal.removeEventListener('abort', onAbort)
+      }
     }
-    
-    // Let the LLM decide by always checking if conversation warrants a meeting
-    // The backend AI will analyze context and determine if meeting is appropriate
-    devLog('✅ Checking with LLM for meeting suggestion')
-    return true
+
+    return {
+      controller,
+      cleanup: () => {
+        clearTimeout(timer)
+        if (removeListener) removeListener()
+      },
+      isExternalAbort: () => state.externalAborted
+    }
   }
 
-  // Call the scheduling agent to get meeting suggestion
-  async checkMeetingSuggestion(userQuery, chatHistory) {
+  async readErrorMessage(response) {
     try {
-      const response = await fetch(`${this.backendUrl}/api/scheduling/suggest`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          currentMessage: userQuery,
-          conversationHistory: chatHistory,
-          userContext: {
-            timestamp: Date.now(),
-            source: 'portfolio_chat'
-          }
-        })
-      })
+      const body = await response.json()
+      if (body && body.status === 'error' && typeof body.message === 'string' && body.message) return body.message
+      if (body && typeof body.message === 'string' && body.message) return body.message
+    } catch (e) {
+      void e
+    }
+    return ''
+  }
 
-      if (!response.ok) {
-        throw new Error(`Scheduling API failed: ${response.status}`)
-      }
-
-      const data = await response.json()
-      
-      if (data.status === 'success' && data.data.shouldSuggest) {
-        data.data.timestamp = Date.now()
-        return data.data
-      }
-      
-      return null
-    } catch (error) {
-      console.error('Meeting suggestion API failed:', error)
-      return null
+  normalizeResult(result) {
+    if (!result || typeof result !== 'object') {
+      return this.normalizeResult(this.generateRuleBasedResponse())
+    }
+    const base = this.generateRuleBasedResponse()
+    const text = typeof result.text === 'string' ? result.text : ''
+    return {
+      text: text || base.text,
+      sources: Array.isArray(result.sources) ? result.sources : [],
+      contextUsed: Boolean(result.contextUsed),
+      suggestions: Array.isArray(result.suggestions) ? result.suggestions.slice(0, 6) : [],
+      model: typeof result.model === 'string' && result.model ? result.model : '',
+      fellback: text ? Boolean(result.fellback) : true
     }
   }
 
-  // Get available time slots
   async getAvailableSlots(meetingType = 'general') {
+    const req = this.prepareRequest()
     try {
       const response = await fetch(`${this.backendUrl}/api/scheduling/slots?meetingType=${meetingType}`, {
-        method: 'GET'
+        method: 'GET',
+        signal: req.controller.signal
       })
 
       if (!response.ok) {
@@ -446,18 +548,21 @@ class AIService {
     } catch (error) {
       console.error('Get slots API failed:', error)
       return null
+    } finally {
+      req.cleanup()
     }
   }
 
-  // Schedule a meeting
   async scheduleMeeting(meetingData) {
+    const req = this.prepareRequest()
     try {
       const response = await fetch(`${this.backendUrl}/api/scheduling/schedule`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(meetingData)
+        body: JSON.stringify(meetingData),
+        signal: req.controller.signal
       })
 
       if (!response.ok) {
@@ -470,140 +575,18 @@ class AIService {
     } catch (error) {
       console.error('Schedule meeting API failed:', error)
       throw error
+    } finally {
+      req.cleanup()
     }
   }
 
-  // Get the last meeting suggestion
-  getLastMeetingSuggestion() {
-    return this.lastMeetingSuggestion
-  }
-
-  // Get writing sources from the last AI response
-  getLastWritingSources() {
-    return this.lastWritingSources
-  }
-
-  // Retrieve writing sources via RAG for a query
-  async getWritingSources(query, k = 8) {
-    try {
-      const response = await fetch(this.backendUrl + '/api/ai/rag', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ query })
-      })
-
-      if (!response.ok) {
-        throw new Error(`RAG API failed: ${response.status}`)
-      }
-
-      const data = await response.json()
-      const results = data?.data?.results || []
-      devLog(`🔍 Retrieved ${results.length} writing sources for query`)
-      return results
-    } catch (error) {
-      console.error('RAG sources retrieval failed:', error)
-      devLog('🔄 RAG unavailable, returning empty sources')
-      return []
-    }
-  }
-
-  // Clear meeting suggestion
   clearMeetingSuggestion() {
     this.lastMeetingSuggestion = null
   }
-
-
-
-  async processResumeCustomization(jobDetails) {
-    try {
-      devLog('🚀 Processing AI-powered resume customization')
-      
-      // Show immediate feedback
-      let response = `🔄 **Processing AI-Powered Resume Customization...**\n\n`
-      response += `**Job Description:** ${jobDetails.jobDescription.length} characters\n\n`
-      response += `⏳ AI is analyzing job requirements and customizing your resume...\n\n`
-
-      // Call the resume service - let AI extract company/title from description
-      const result = await resumeService.customizeAndGeneratePDF({
-        jobDescription: jobDetails.jobDescription,
-        companyName: '',  // Let AI extract this
-        jobTitle: ''      // Let AI extract this
-      })
-
-      // Success response with download link
-      response += `✅ **AI Resume Customization Complete!**\n\n`
-      response += `🤖 **Powered by:** AI\n`
-      response += `📊 **ATS Score:** ${result.customization.data?.atsScore || 'N/A'}%\n`
-      response += `🎯 **Match Percentage:** ${result.customization.data?.matchPercentage || 'N/A'}%\n`
-      response += `📄 **File Size:** ${(result.pdf.data?.fileSize / 1024).toFixed(1)}KB\n\n`
-
-      response += `📥 **Download Your Customized Resume:**\n[📄 ${result.fileName}](${result.downloadUrl})\n\n`
-      response += `🎯 **This resume has been intelligently optimized with:**\n`
-      response += `• **AI-powered content analysis** - Deep understanding of job requirements\n`
-      response += `• **Smart skill highlighting** - Relevant experience emphasized\n`
-      response += `• **ATS-compatible formatting** - Passes automated screening\n`
-      response += `• **Professional typography** - Modern, clean design\n`
-      response += `• **Intelligent customization** - Tailored for this specific role\n\n`
-      response += `**Ready to apply with confidence!** 🚀`
-
-      return response
-
-    } catch (error) {
-      console.error('Resume customization failed:', error)
-      return `❌ **Resume customization failed:** ${error.message}\n\nPlease try again or check if the backend service is running.`
-    }
-  }
-
-  async checkBackendHealth() {
-    try {
-      const response = await fetch(this.healthEndpoint, { method: 'GET' });
-      if (response.ok) {
-        devLog('✅ Backend API is healthy.');
-      } else {
-        console.warn('⚠️ Backend API is not responding or unhealthy. Falling back to rule-based responses.');
-        this.isModelLoaded = false;
-        this.fallbackToRules = true;
-      }
-    } catch (error) {
-      console.error('Error checking backend health:', error);
-      console.warn('⚠️ Backend API is not responding or unhealthy. Falling back to rule-based responses.');
-      this.isModelLoaded = false;
-      this.fallbackToRules = true;
-    }
-  }
-
-  getModelStatus() {
-    return {
-      isLoading: false,
-      isModelLoaded: this.isModelLoaded,
-      modelType: this.modelType,
-      fallbackToRules: this.fallbackToRules,
-      isReady: true
-    }
-  }
-
-  setRuleBasedMode() {
-    this.fallbackToRules = true
-    this.modelType = 'rules'
-  }
-
-  setLocalAPIMode() {
-    this.fallbackToRules = false
-    this.modelType = 'mistral-api'
-  }
-
-  setMistralAPIMode() {
-    this.fallbackToRules = false
-    this.modelType = 'mistral-api'
-  }
 }
 
-// Create singleton instance
 export const aiService = new AIService()
 
-// Legacy export for backward compatibility
-export const generateResponse = (query) => {
-  return aiService.generateResponse(query)
-} 
+export const generateResponse = (query, chatHistory = [], opts = {}) => {
+  return aiService.generateResponse(query, chatHistory, opts)
+}

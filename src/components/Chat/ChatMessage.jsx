@@ -7,12 +7,38 @@ const FAINT = 'rgba(255,255,255,0.3)'
 const BORDER = 'rgba(0,255,65,0.25)'
 const BORDER_DIM = 'rgba(0,255,65,0.12)'
 
-const ChatMessage = ({ message, colors, instantMode = false }) => {
+const escapeHtml = (str) => {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+const sanitizeHtml = (html) => {
+  return String(html)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<script\b[^>]*\/?>/gi, '')
+    .replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, ' ')
+    .replace(/javascript\s*:/gi, '')
+}
+
+const safeUrl = (url) => {
+  if (/^(https?:\/\/|\/)/i.test(url)) return escapeHtml(url)
+  return ''
+}
+
+const truncate = (text, max) => {
+  const value = String(text || '').trim()
+  return value.length > max ? `${value.slice(0, max)}…` : value
+}
+
+const ChatMessage = ({ message, colors, instantMode = false, onSuggestionClick, suggestionsDisabled = false }) => {
   const [displayedText, setDisplayedText] = useState('')
   const [isTyping, setIsTyping] = useState(true)
   const messageRef = useRef(null)
 
-  // Terminal color scheme
   const safeColors = colors || {
     textPrimary: '#ffffff',
     textSecondary: DIM,
@@ -23,10 +49,8 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
     secondaryColor: GREEN
   }
 
-  // Realistic typing animation for assistant messages
   useEffect(() => {
     if (message.type === 'assistant') {
-      // If instant mode is enabled, show text immediately
       if (instantMode) {
         setDisplayedText(message.content)
         setIsTyping(false)
@@ -41,7 +65,6 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
 
       const typingInterval = setInterval(() => {
         if (currentIndex < text.length) {
-          // Display 2-3 characters at once for faster rendering on long text
           const charsToAdd = text.length > 200 ? 3 : text.length > 100 ? 2 : 1
           const nextIndex = Math.min(currentIndex + charsToAdd, text.length)
           setDisplayedText(text.slice(0, nextIndex))
@@ -50,7 +73,7 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
           setIsTyping(false)
           clearInterval(typingInterval)
         }
-      }, 5) // Much faster typing speed
+      }, 5)
 
       return () => clearInterval(typingInterval)
     } else {
@@ -59,72 +82,35 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
     }
   }, [message.content, message.type, instantMode])
 
-  // Format text with line breaks and basic markdown
+  const buildDownloadHtml = (name, url) => {
+    const safeUrlValue = safeUrl(url)
+    if (!safeUrlValue) return escapeHtml(`[📄 ${name}](${url})`)
+    return `<a href="${safeUrlValue}" download="${escapeHtml(name)}" title="Download ${escapeHtml(name)}" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(0,255,65,0.06);color:${GREEN};text-decoration:none;border:1px solid ${BORDER};border-radius:4px;font-size:11px;font-family:${MONO};">⬇ download --resume</a>`
+  }
+
+  const buildLineHtml = (line) => {
+    let html = escapeHtml(line)
+    html = html.replace(/\[📄\s+([^\]]+)\]\(([^)]+)\)/g, (match, name, url) => buildDownloadHtml(name, url))
+    html = html.replace(/`([^`]+)`/g, (match, code) => `<span style="background:rgba(0,255,65,0.10);color:#9dffb0;padding:0 4px;border-radius:2px;">${code}</span>`)
+    html = html.replace(/\*\*(.*?)\*\*/g, (match, bold) => `<strong style="color:${GREEN};font-weight:600;">${bold}</strong>`)
+    return sanitizeHtml(html)
+  }
+
   const formatText = (text) => {
     if (!text) return null
 
-    // Split by double newlines for paragraphs
     const paragraphs = text.split('\n\n')
 
     return paragraphs.map((paragraph, pIndex) => {
-      // Split by single newlines for line breaks within paragraphs
       const lines = paragraph.split('\n')
 
       return (
         <div key={pIndex} style={{ marginBottom: pIndex < paragraphs.length - 1 ? '14px' : '0' }}>
           {lines.map((line, lIndex) => {
-            // Handle download links - convert to buttons
-            const downloadMatch = line.match(/\[📄 ([^\]]+)\]\(([^)]+)\)/)
-            if (downloadMatch) {
-              const fileName = downloadMatch[1]
-              const downloadUrl = downloadMatch[2]
+            const trimmed = line.trim()
 
-              return (
-                <div key={lIndex} style={{
-                  marginTop: '8px',
-                  marginBottom: '8px',
-                  textAlign: 'center'
-                }}>
-                  <a
-                    href={downloadUrl}
-                    download={fileName}
-                    title={`Download ${fileName}`}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 14px',
-                      background: 'rgba(0,255,65,0.06)',
-                      color: GREEN,
-                      textDecoration: 'none',
-                      border: `1px solid ${BORDER}`,
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 400,
-                      fontFamily: MONO,
-                      transition: 'all 0.2s ease',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = 'rgba(0,255,65,0.12)'
-                      e.target.style.boxShadow = '0 0 12px rgba(0,255,65,0.2)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'rgba(0,255,65,0.06)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  >
-                    <span style={{ fontSize: '11px' }}>⬇</span>
-                    <span style={{ letterSpacing: '0.4px', fontSize: '11px' }}>
-                      download --resume
-                    </span>
-                  </a>
-                </div>
-              )
-            }
-
-            // Handle bullet points
-            if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+            if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+              const contentHtml = buildLineHtml(trimmed.replace(/^[•-]\s*/, ''))
               return (
                 <div key={lIndex} style={{
                   marginLeft: '14px',
@@ -134,16 +120,13 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
                   lineHeight: '1.5',
                   fontFamily: MONO
                 }}>
-                  <span style={{ color: GREEN }}>{'>'}</span> {line.trim()}
+                  <span style={{ color: GREEN }}>{'>'}</span>{' '}
+                  <span dangerouslySetInnerHTML={{ __html: contentHtml }} />
                 </div>
               )
             }
 
-            // Handle bold text with **text**
-            const formattedLine = line.replace(/\*\*(.*?)\*\*/g, (match, text) => {
-              return `<strong style="color: ${GREEN}; font-weight: 600;">${text}</strong>`
-            })
-
+            const lineHtml = buildLineHtml(line)
             return (
               <div
                 key={lIndex}
@@ -154,7 +137,7 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
                   lineHeight: '1.6',
                   fontFamily: MONO
                 }}
-                dangerouslySetInnerHTML={{ __html: formattedLine }}
+                dangerouslySetInnerHTML={{ __html: lineHtml }}
               />
             )
           })}
@@ -164,6 +147,8 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
   }
 
   const isUser = message.type === 'user'
+  const hasSuggestions = !isUser && Array.isArray(message.suggestions) && message.suggestions.length > 0 && !message.streaming
+  const hasSources = !isUser && Array.isArray(message.sources) && message.sources.length > 0
 
   return (
     <div
@@ -182,7 +167,6 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
         alignItems: isUser ? 'flex-end' : 'flex-start',
         gap: '4px'
       }}>
-        {/* Label */}
         <div style={{
           fontSize: '10px',
           color: isUser ? GREEN : FAINT,
@@ -192,7 +176,6 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
           {isUser ? 'user@hc' : 'ai@hc'}
         </div>
 
-        {/* Message block */}
         <div style={{
           background: isUser ? 'rgba(0,255,65,0.08)' : 'rgba(0,255,65,0.02)',
           color: isUser ? '#ffffff' : safeColors.textPrimary,
@@ -223,7 +206,17 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
               fontFamily: MONO
             }}>
               {formatText(displayedText)}
-              {isTyping && (
+              {message.streaming && (
+                <span style={{
+                  display: 'inline-block',
+                  color: GREEN,
+                  marginLeft: '2px',
+                  animation: 'cursorBlink 1s infinite'
+                }}>
+                  {'▌'}
+                </span>
+              )}
+              {!message.streaming && isTyping && (
                 <span style={{
                   display: 'inline-block',
                   width: '6px',
@@ -236,7 +229,7 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
               )}
             </div>
           )}
-          {!isUser && Array.isArray(message.sources) && message.sources.length > 0 && (
+          {hasSources && (
             <div style={{
               marginTop: '10px',
               borderTop: `1px solid ${BORDER_DIM}`,
@@ -247,37 +240,97 @@ const ChatMessage = ({ message, colors, instantMode = false }) => {
                 color: FAINT,
                 fontFamily: MONO,
                 letterSpacing: '0.06em',
-                marginBottom: '4px'
+                marginBottom: '6px'
               }}>
                 ◎ sources
               </div>
-              {message.sources.map((source, index) => (
-                <div key={index} style={{
-                  marginBottom: '4px',
-                  fontSize: '12px',
-                  fontFamily: MONO,
-                  lineHeight: '1.5'
-                }}>
-                  <span style={{ color: GREEN }}>▸ </span>
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: GREEN,
-                      fontFamily: MONO,
-                      fontSize: '12px',
-                      textDecoration: 'none',
-                      wordWrap: 'break-word'
-                    }}
-                  >
-                    {source.title}
-                  </a>
-                </div>
-              ))}
+              {message.sources.map((source, index) => {
+                const snippet = typeof source.snippet === 'string' && source.snippet.trim()
+                  ? truncate(source.snippet, 120)
+                  : ''
+                return (
+                  <div key={index} style={{
+                    marginBottom: '6px',
+                    fontSize: '12px',
+                    fontFamily: MONO,
+                    lineHeight: '1.5'
+                  }}>
+                    <div>
+                      <span style={{ color: GREEN }}>▸ </span>
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: GREEN,
+                          fontFamily: MONO,
+                          fontSize: '12px',
+                          textDecoration: 'none',
+                          wordWrap: 'break-word'
+                        }}
+                      >
+                        {source.title}
+                      </a>
+                    </div>
+                    {snippet && (
+                      <div style={{
+                        color: FAINT,
+                        fontSize: '11px',
+                        marginTop: '2px',
+                        marginLeft: '14px',
+                        wordWrap: 'break-word',
+                        lineHeight: '1.4'
+                      }}>
+                        {snippet}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
+
+        {hasSuggestions && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px', maxWidth: '100%' }}>
+            {message.suggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => onSuggestionClick && onSuggestionClick(suggestion)}
+                disabled={suggestionsDisabled}
+                style={{
+                  background: 'rgba(0,255,65,0.03)',
+                  border: `1px solid ${BORDER_DIM}`,
+                  borderRadius: '4px',
+                  padding: '5px 10px',
+                  color: 'rgba(255,255,255,0.85)',
+                  cursor: suggestionsDisabled ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  textAlign: 'left',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: MONO,
+                  opacity: suggestionsDisabled ? 0.45 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!suggestionsDisabled) {
+                    e.target.style.borderColor = GREEN
+                    e.target.style.background = 'rgba(0,255,65,0.08)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.borderColor = BORDER_DIM
+                  e.target.style.background = 'rgba(0,255,65,0.03)'
+                }}
+              >
+                <span style={{ fontSize: '11px', color: GREEN, flexShrink: 0 }}>{'+'}</span>
+                <span>{suggestion}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

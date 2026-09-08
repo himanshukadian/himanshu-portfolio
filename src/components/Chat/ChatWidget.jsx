@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ChatMessage from './ChatMessage'
 import MessageInput from './MessageInput'
-import SchedulingWidget from './SchedulingWidget'
 import { aiService } from '../../utils/aiService'
 
 const MONO = "'Fira Code', monospace"
@@ -11,31 +10,46 @@ const FAINT = 'rgba(255,255,255,0.3)'
 const BORDER = 'rgba(0,255,65,0.25)'
 const BORDER_DIM = 'rgba(0,255,65,0.12)'
 
-// Session management keys
-const SESSION_KEYS = {
-  AUTO_OPENED: 'chatWidget_autoOpened',
-  LAST_SESSION: 'chatWidget_lastSession',
-  USER_CLOSED: 'chatWidget_userClosed',
-  CHAT_HISTORY: 'chatWidget_chatHistory'
+const CHAT_HISTORY_KEY = 'chatWidget_chatHistory'
+const RATE_LIMIT_MESSAGE = "You're sending messages too quickly — give me a moment 😉"
+
+let messageCounter = 0
+
+const makeMessageId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  messageCounter += 1
+  return `msg-${messageCounter}`
 }
 
 const ChatWidget = () => {
+  const messagesRef = useRef([])
+  const abortRef = useRef(null)
+  const busyRef = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(() => {
+    try {
+      const savedHistory = sessionStorage.getItem(CHAT_HISTORY_KEY)
+      if (savedHistory) {
+        const parsedHistory = JSON.parse(savedHistory)
+        if (Array.isArray(parsedHistory)) {
+          messagesRef.current = parsedHistory
+          return parsedHistory
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error)
+    }
+    return []
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
   const [expandedSection, setExpandedSection] = useState(null)
-  const [hasAutoOpened, setHasAutoOpened] = useState(false)
-  const [userHasClosed, setUserHasClosed] = useState(false)
   const [error, setError] = useState(null)
-  const [modelStatus, setModelStatus] = useState(aiService.getModelStatus())
-  const [showScheduling, setShowScheduling] = useState(false)
-  const [meetingSuggestion, setMeetingSuggestion] = useState(null)
+  const [aiOnline, setAiOnline] = useState(() => aiService.getOnline())
   const messagesEndRef = useRef(null)
-  const autoOpenTimerRef = useRef(null)
-  const responseTimerRef = useRef(null)
 
-  // Terminal color scheme
   const getColors = () => {
     return {
       textPrimary: '#ffffff',
@@ -51,46 +65,35 @@ const ChatWidget = () => {
 
   const colors = getColors()
 
-  // Monitor AI model status
-  useEffect(() => {
-    const updateModelStatus = () => {
-      setModelStatus(aiService.getModelStatus())
-    }
-
-    const statusInterval = setInterval(updateModelStatus, 2000)
-
-    if (modelStatus.isModelLoaded || modelStatus.fallbackToRules) {
-      clearInterval(statusInterval)
-    }
-
-    return () => clearInterval(statusInterval)
-  }, [modelStatus.isLoading])
-
-  // Load chat history from sessionStorage on component mount
-  useEffect(() => {
-    try {
-      const savedHistory = sessionStorage.getItem(SESSION_KEYS.CHAT_HISTORY)
-      if (savedHistory) {
-        const parsedHistory = JSON.parse(savedHistory)
-        setMessages(parsedHistory)
-      }
-    } catch (error) {
-      console.error('Error loading chat history:', error)
-    }
+  const commitMessages = useCallback((next) => {
+    messagesRef.current = next
+    setMessages(next)
   }, [])
 
-  // Save chat history to sessionStorage whenever messages change
   useEffect(() => {
-    if (messages.length > 0) {
+    const cleaned = messages.map((message) => {
+      if (message.streaming) {
+        const copy = Object.assign({}, message)
+        delete copy.streaming
+        return copy
+      }
+      return message
+    })
+    if (cleaned.length > 0) {
       try {
-        sessionStorage.setItem(SESSION_KEYS.CHAT_HISTORY, JSON.stringify(messages))
+        sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(cleaned))
+      } catch (error) {
+        console.error('Error saving chat history:', error)
+      }
+    } else {
+      try {
+        sessionStorage.removeItem(CHAT_HISTORY_KEY)
       } catch (error) {
         console.error('Error saving chat history:', error)
       }
     }
   }, [messages])
 
-  // Smooth scroll to bottom
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({
@@ -102,51 +105,12 @@ const ChatWidget = () => {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, scrollToBottom])
+  }, [messages, isLoading, scrollToBottom])
 
-  // Session management for auto-open
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      window.resetChatWidget = () => {
-        localStorage.removeItem(SESSION_KEYS.AUTO_OPENED)
-        localStorage.removeItem(SESSION_KEYS.LAST_SESSION)
-        localStorage.removeItem(SESSION_KEYS.USER_CLOSED)
-        sessionStorage.removeItem(SESSION_KEYS.CHAT_HISTORY)
-        setHasAutoOpened(false)
-        setUserHasClosed(false)
-        setIsOpen(false)
-        setMessages([])
-        console.log('Chat widget reset! Chat history cleared. Refresh the page to test auto-open.')
-      }
-
-      window.clearChatHistory = () => {
-        sessionStorage.removeItem(SESSION_KEYS.CHAT_HISTORY)
-        setMessages([])
-        console.log('Chat history cleared!')
-      }
-    }
-
-    try {
-      // Auto-open is disabled - let users discover the chat organically
-      setHasAutoOpened(true)
-    } catch (error) {
-      console.error('Session management error:', error)
-      setHasAutoOpened(true)
-    }
-
-    // Cleanup
-    return () => {
-      if (autoOpenTimerRef.current) {
-        clearTimeout(autoOpenTimerRef.current)
-      }
-    }
-  }, [hasAutoOpened, userHasClosed])
-
-  // Cleanup response timer on unmount
   useEffect(() => {
     return () => {
-      if (responseTimerRef.current) {
-        clearTimeout(responseTimerRef.current)
+      if (abortRef.current) {
+        abortRef.current.abort()
       }
     }
   }, [])
@@ -159,110 +123,161 @@ const ChatWidget = () => {
   }
 
   const handleSendMessage = useCallback(async (messageText) => {
-    if (!messageText?.trim()) return
+    const text = String(messageText || '').trim()
+    if (!text || busyRef.current) return
 
-    try {
-      setError(null)
+    busyRef.current = true
+    setShowWelcome(false)
+    setIsLoading(true)
+    setError(null)
+    setAiOnline(aiService.getOnline())
 
-      // If this is the first interaction, just hide the welcome screen
-      if (showWelcome) {
-        setShowWelcome(false)
-      }
-
-      const userMessage = {
-        id: Date.now(),
-        type: 'user',
-        content: messageText,
-        timestamp: new Date()
-      }
-
-      setMessages(prev => [...prev, userMessage])
-      setIsLoading(true)
-      setExpandedSection(null) // Close any expanded sections
-
-      // Clear any existing timer
-      if (responseTimerRef.current) {
-        clearTimeout(responseTimerRef.current)
-      }
-
-      // Use AI service for response generation
-      try {
-        // Get current messages for context (excluding the user message we just added)
-        const currentMessages = [...messages, userMessage]
-        const response = await aiService.generateResponse(messageText, currentMessages)
-
-        // Check if there's a meeting suggestion
-        const suggestion = aiService.getLastMeetingSuggestion()
-        if (suggestion && suggestion.shouldSuggest) {
-          setMeetingSuggestion(suggestion)
-          // Show scheduling widget after a short delay
-          setTimeout(() => {
-            setShowScheduling(true)
-          }, 1000)
-        }
-
-        const assistantMessage = {
-          id: Date.now() + 1,
-          type: 'assistant',
-          content: response,
-          timestamp: new Date()
-        }
-
-        const writingSources = aiService.getLastWritingSources()
-        if (Array.isArray(writingSources) && writingSources.length > 0) {
-          assistantMessage.sources = writingSources
-        }
-
-        setMessages(prev => [...prev, assistantMessage])
-        setIsLoading(false)
-      } catch (responseError) {
-        console.error('AI response generation error:', responseError)
-        const errorMessage = {
-          id: Date.now() + 1,
-          type: 'assistant',
-          content: "I apologize, but I'm having trouble processing your request. Could you please try asking in a different way?",
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, errorMessage])
-        setIsLoading(false)
-        setError('Failed to generate response')
-      }
-    } catch (error) {
-      console.error('Message handling error:', error)
-      setIsLoading(false)
-      setError('Failed to send message')
+    if (abortRef.current) {
+      abortRef.current.abort()
     }
-  }, [showWelcome])
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    const chatHistory = messagesRef.current
+      .filter((message) => message.type === 'user' || message.type === 'assistant')
+      .map((message) => ({
+        role: message.type === 'user' ? 'user' : 'assistant',
+        content: message.content
+      }))
+
+    const userMessage = {
+      id: makeMessageId(),
+      type: 'user',
+      content: text,
+      timestamp: new Date()
+    }
+    commitMessages([...messagesRef.current, userMessage])
+
+    const assistantMessage = {
+      id: makeMessageId(),
+      type: 'assistant',
+      content: '',
+      streaming: true,
+      timestamp: new Date()
+    }
+    commitMessages([...messagesRef.current, assistantMessage])
+
+    const patchAssistant = (patch) => {
+      commitMessages(
+        messagesRef.current.map((message) =>
+          message.id === assistantMessage.id ? { ...message, ...patch } : message
+        )
+      )
+    }
+
+    const applyResult = (result) => {
+      patchAssistant({
+        content: typeof result.text === 'string' ? result.text : '',
+        streaming: false,
+        sources: Array.isArray(result.sources) ? result.sources : [],
+        suggestions: Array.isArray(result.suggestions) ? result.suggestions : [],
+        model: result.model || '',
+        contextUsed: Boolean(result.contextUsed),
+        fellback: Boolean(result.fellback)
+      })
+    }
+
+    const settle = (banner) => {
+      if (abortRef.current === controller) {
+        abortRef.current = null
+      }
+      busyRef.current = false
+      setIsLoading(false)
+      setAiOnline(aiService.getOnline())
+      if (banner) setError(banner)
+    }
+
+    const handleRateLimit = () => {
+      settle(RATE_LIMIT_MESSAGE)
+      patchAssistant({
+        content: RATE_LIMIT_MESSAGE,
+        streaming: false,
+        sources: [],
+        suggestions: []
+      })
+    }
+
+    let result = null
+    try {
+      result = await aiService.streamResponse(text, chatHistory, {
+        onDelta: (accumulated) => {
+          if (abortRef.current !== controller) return
+          patchAssistant({ content: accumulated })
+        },
+        signal: controller.signal
+      })
+    } catch (streamError) {
+      if (abortRef.current !== controller) return
+
+      if (streamError && streamError.kind === 'rate_limit') {
+        handleRateLimit()
+        return
+      }
+
+      try {
+        result = await aiService.generateResponse(text, chatHistory, { signal: controller.signal })
+      } catch (jsonError) {
+        if (abortRef.current !== controller) return
+        if (jsonError && jsonError.kind === 'rate_limit') {
+          handleRateLimit()
+          return
+        }
+        const fallback = aiService.getOfflineFallback()
+        settle()
+        patchAssistant({
+          content: fallback.text || '',
+          streaming: false,
+          sources: [],
+          suggestions: Array.isArray(fallback.suggestions) ? fallback.suggestions : [],
+          model: fallback.model || '',
+          fellback: true
+        })
+        return
+      }
+    }
+
+    if (abortRef.current !== controller) return
+    if (result) {
+      applyResult(result)
+    }
+    settle()
+  }, [commitMessages])
 
   const handleQuickAction = useCallback((query) => {
+    if (isLoading || busyRef.current) return
     handleSendMessage(query)
-  }, [handleSendMessage])
+  }, [isLoading, handleSendMessage])
 
   const handleToggleSection = useCallback((section) => {
     setExpandedSection(prev => prev === section ? null : section)
   }, [])
 
+  const handleClearChat = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+    }
+    abortRef.current = null
+    busyRef.current = false
+    setIsLoading(false)
+    setError(null)
+    commitMessages([])
+  }, [commitMessages])
+
   const handleClose = useCallback(() => {
     setIsOpen(false)
     setError(null)
-    setUserHasClosed(true)
-
-    if (process.env.NODE_ENV !== 'development') {
-      localStorage.setItem(SESSION_KEYS.USER_CLOSED, 'true')
-    }
   }, [])
 
   const handleOpen = useCallback(() => {
     setIsOpen(true)
     setError(null)
-    setUserHasClosed(false)
-
-    if (process.env.NODE_ENV !== 'development') {
-      localStorage.removeItem(SESSION_KEYS.USER_CLOSED)
-    }
   }, [])
 
-  // Quick suggestion sections - organized by query categories
   const quickSuggestions = [
     { text: "Tell me about your work experience", emoji: "" },
     { text: "What are your technical skills?", emoji: "" },
@@ -274,7 +289,6 @@ const ChatWidget = () => {
     { text: "What are your writing and articles about?", emoji: "" }
   ]
 
-  // Portfolio sections for expandable cards - enhanced with smart categorization
   const portfolioSections = [
     {
       title: "Work Experience",
@@ -313,6 +327,8 @@ const ChatWidget = () => {
       action: "How can I get in touch with you?"
     }
   ]
+
+  const streamingActive = messages.some((message) => message.streaming)
 
   if (!isOpen) {
     return (
@@ -387,7 +403,6 @@ const ChatWidget = () => {
       overflow: 'hidden',
       fontFamily: MONO
     }}>
-      {/* Header */}
       <div className="chat-widget-header" style={{
         background: '#000000',
         color: '#fff',
@@ -398,7 +413,6 @@ const ChatWidget = () => {
         flexShrink: 0,
         borderBottom: `1px solid ${BORDER}`
       }}>
-        {/* Title dots */}
         <div style={{
           display: 'flex',
           gap: '6px',
@@ -442,48 +456,71 @@ const ChatWidget = () => {
             <p style={{
               margin: '0',
               fontSize: '11px',
-              color: modelStatus.isModelLoaded && !modelStatus.fallbackToRules ? GREEN : DIM,
+              color: aiOnline ? GREEN : '#ff5f56',
               fontFamily: MONO,
               whiteSpace: 'nowrap'
             }}>
-              {modelStatus.isLoading
-                ? 'loading model...'
-                : modelStatus.isModelLoaded && !modelStatus.fallbackToRules
-                  ? '● ai.online'
-                  : '● ai.ready (rules mode)'}
+              {'●'} {aiOnline ? 'ai.online' : 'ai.offline'}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={handleClose}
-          style={{
-            background: 'transparent',
-            border: `1px solid ${BORDER_DIM}`,
-            borderRadius: '4px',
-            color: DIM,
-            fontSize: '14px',
-            cursor: 'pointer',
-            padding: '2px 8px',
-            transition: 'all 0.2s ease',
-            fontFamily: MONO
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.color = '#ff5f56'
-            e.target.style.borderColor = 'rgba(255,95,86,0.4)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.color = DIM
-            e.target.style.borderColor = BORDER_DIM
-          }}
-          title="Close Chat"
-          aria-label="Close Chat"
-        >
-          [x]
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            onClick={handleClearChat}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${BORDER_DIM}`,
+              borderRadius: '4px',
+              color: DIM,
+              fontSize: '11px',
+              cursor: 'pointer',
+              padding: '2px 8px',
+              transition: 'all 0.2s ease',
+              fontFamily: MONO
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = GREEN
+              e.currentTarget.style.borderColor = BORDER
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = DIM
+              e.currentTarget.style.borderColor = BORDER_DIM
+            }}
+            title="Clear conversation"
+            aria-label="Clear conversation"
+          >
+            clear
+          </button>
+          <button
+            onClick={handleClose}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${BORDER_DIM}`,
+              borderRadius: '4px',
+              color: DIM,
+              fontSize: '14px',
+              cursor: 'pointer',
+              padding: '2px 8px',
+              transition: 'all 0.2s ease',
+              fontFamily: MONO
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#ff5f56'
+              e.currentTarget.style.borderColor = 'rgba(255,95,86,0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = DIM
+              e.currentTarget.style.borderColor = BORDER_DIM
+            }}
+            title="Close Chat"
+            aria-label="Close Chat"
+          >
+            [x]
+          </button>
+        </div>
       </div>
 
-      {/* Error Display */}
       {error && (
         <div style={{
           background: 'rgba(255,0,0,0.08)',
@@ -513,7 +550,6 @@ const ChatWidget = () => {
         </div>
       )}
 
-      {/* Content */}
       <div style={{
         flex: '1',
         display: 'flex',
@@ -522,7 +558,6 @@ const ChatWidget = () => {
         minHeight: 0
       }}>
         {showWelcome ? (
-          /* Welcome Screen */
           <div className="chat-widget-content" style={{
             flex: '1',
             padding: '18px 16px',
@@ -548,30 +583,17 @@ const ChatWidget = () => {
                 fontFamily: MONO
               }}>
                 {'>'} I can help with portfolio info, schedule meetings, and customize resumes with AI.
-                {!modelStatus.isModelLoaded && (
-                  <span style={{
-                    display: 'block',
-                    marginTop: '6px',
-                    color: GREEN,
-                    fontSize: '11px'
-                  }}>
-                    {'>'} loading advanced AI model in background...
-                  </span>
-                )}
-                {modelStatus.isModelLoaded && !modelStatus.fallbackToRules && (
-                  <span style={{
-                    display: 'block',
-                    marginTop: '6px',
-                    color: GREEN,
-                    fontSize: '11px'
-                  }}>
-                    {'>'} ai model loaded — responses active
-                  </span>
-                )}
+                <span style={{
+                  display: 'block',
+                  marginTop: '6px',
+                  color: aiOnline ? GREEN : '#ff5f56',
+                  fontSize: '11px'
+                }}>
+                  {'>'} ai.status: {aiOnline ? 'online' : 'offline'}
+                </span>
               </p>
             </div>
 
-            {/* Quick Suggestions */}
             <div style={{ marginBottom: '20px' }}>
               <h3 style={{
                 fontSize: '11px',
@@ -588,25 +610,29 @@ const ChatWidget = () => {
                   <button
                     key={index}
                     onClick={() => handleQuickAction(suggestion.text)}
+                    disabled={isLoading}
                     style={{
                       background: 'rgba(0,255,65,0.03)',
                       border: `1px solid ${BORDER_DIM}`,
                       borderRadius: '4px',
                       padding: '8px 12px',
                       color: 'rgba(255,255,255,0.8)',
-                      cursor: 'pointer',
+                      cursor: isLoading ? 'not-allowed' : 'pointer',
                       transition: 'all 0.2s ease',
                       textAlign: 'left',
                       fontSize: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      fontFamily: MONO
+                      fontFamily: MONO,
+                      opacity: isLoading ? 0.45 : 1
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.borderColor = GREEN
-                      e.target.style.background = 'rgba(0,255,65,0.07)'
-                      e.target.style.color = '#ffffff'
+                      if (!isLoading) {
+                        e.target.style.borderColor = GREEN
+                        e.target.style.background = 'rgba(0,255,65,0.07)'
+                        e.target.style.color = '#ffffff'
+                      }
                     }}
                     onMouseLeave={(e) => {
                       e.target.style.borderColor = BORDER_DIM
@@ -621,7 +647,6 @@ const ChatWidget = () => {
               </div>
             </div>
 
-            {/* Portfolio Sections */}
             <div>
               <h3 style={{
                 fontSize: '11px',
@@ -691,20 +716,30 @@ const ChatWidget = () => {
             </div>
           </div>
         ) : (
-          /* Chat Messages */
-          <div style={{
-            flex: '1',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            padding: '16px',
-            background: '#000000',
-            WebkitOverflowScrolling: 'touch',
-            minHeight: 0
-          }} className="chat-scroll">
+          <div
+            className="chat-scroll"
+            aria-live="polite"
+            style={{
+              flex: '1',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              padding: '16px',
+              background: '#000000',
+              WebkitOverflowScrolling: 'touch',
+              minHeight: 0
+            }}
+          >
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} colors={colors} instantMode />
+              <ChatMessage
+                key={message.id}
+                message={message}
+                colors={colors}
+                instantMode
+                onSuggestionClick={handleQuickAction}
+                suggestionsDisabled={isLoading}
+              />
             ))}
-            {isLoading && (
+            {isLoading && !streamingActive && (
               <div style={{
                 display: 'flex',
                 justifyContent: 'flex-start',
@@ -727,11 +762,7 @@ const ChatWidget = () => {
                     <div className="chat-loading-dot"></div>
                   </div>
                   <span style={{ color: DIM, fontSize: '11px' }}>
-                    {modelStatus.isModelLoaded && !modelStatus.fallbackToRules
-                      ? 'processing...'
-                      : modelStatus.isLoading
-                        ? 'initializing...'
-                        : 'thinking...'}
+                    thinking...
                   </span>
                 </div>
               </div>
@@ -740,7 +771,6 @@ const ChatWidget = () => {
           </div>
         )}
 
-        {/* Input Area */}
         <div className="chat-widget-input" style={{
           borderTop: `1px solid ${BORDER_DIM}`,
           background: '#000000',
@@ -750,31 +780,6 @@ const ChatWidget = () => {
           <MessageInput onSendMessage={handleSendMessage} disabled={isLoading} colors={colors} />
         </div>
       </div>
-
-      {/* Scheduling Widget */}
-      <SchedulingWidget
-        aiService={aiService}
-        show={showScheduling}
-        onHide={() => setShowScheduling(false)}
-        meetingSuggestion={meetingSuggestion}
-        onMeetingScheduled={(meetingData) => {
-          const successMessage = {
-            id: Date.now(),
-            type: 'assistant',
-            content: `> meeting.scheduled()\n${meetingData.meetingType.replace('_', ' ')} on ${new Date(meetingData.scheduledTime).toLocaleDateString('en-IN', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}. A confirmation email is on the way.`,
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, successMessage])
-          setShowScheduling(false)
-          setMeetingSuggestion(null)
-        }}
-      />
     </div>
   )
 }
