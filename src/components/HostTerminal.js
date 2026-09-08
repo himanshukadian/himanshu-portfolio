@@ -53,14 +53,14 @@ const RESUME_PDF =
   (typeof window !== "undefined" ? window.location.origin : "") + "/Himanshu_Chaudhary_Resume.pdf";
 
 const inlineMdPattern =
-  /\*\*\[([^\]]+)\]\(([^)]+)\)\*\*|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+?)\*\*|`([^`]+?)`|\*([^*]+?)\*/g;
+  /\*\*\[([^\]]+)\]\(([^)]+)\)\*\*|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+?)\*\*|`([^`]+?)`|\*([^*]+?)\*|([a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s)\]"']+)/g;
 
 const LINK_STYLE = { color: "#6C63FF", textDecoration: "underline", cursor: "pointer" };
 
-function renderInline(text) {
+function renderInline(text, keyPrefix = 0) {
   const nodes = [];
   let last = 0;
-  let key = 0;
+  let key = keyPrefix;
   let m;
   inlineMdPattern.lastIndex = 0;
   while ((m = inlineMdPattern.exec(text)) !== null) {
@@ -83,12 +83,37 @@ function renderInline(text) {
       nodes.push(<code key={key++}>{m[6]}</code>);
     } else if (m[7] !== undefined) {
       nodes.push(<em key={key++}>{m[7]}</em>);
+    } else if (m[8] !== undefined) {
+      const url = m[8].replace(/[.,;:!?]+$/, "");
+      nodes.push(
+        <a key={key++} href={url} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
+          {url}
+        </a>
+      );
     }
     last = m.index + m[0].length;
   }
   if (last < text.length) nodes.push(text.slice(last));
   return nodes;
 }
+
+function renderHaloLine(text, keyPrefix) {
+  const m = String(text || "").match(/^#{1,6}\s+(.*)$/);
+  if (m) {
+    return [<strong key={keyPrefix} style={{ display: "block", marginTop: "4px" }}>{renderInline(m[1], keyPrefix + 1)}</strong>];
+  }
+  return renderInline(text, keyPrefix);
+}
+
+const isWritingListIntent = (raw) => {
+  const q = String(raw || "").trim().toLowerCase();
+  if (!q) return false;
+  if (/(explain|summar|tell me|about|which|how|why|help|compare|describe|read |more details|what is|what's)/.test(q)) return false;
+  return (
+    /^(wrting|writin|writing|writings|artical|articles?|articals?|post|posts|blog|blogs|blog posts|what have you written|your articles|your writing|all your writing|all your articles|your blog posts|blogs you've written)$/.test(q) ||
+    /^(list|show|show me|all|see|browse|get)\s+(your\s+|all\s+)?(writing|writings|articles?|articals?|posts|blog posts?)\s*$/.test(q)
+  );
+};
 
 // ---- intro (typed on open) ----
 const WELCOME_CMD = { text: "himanshu@portfolio:~$ whoami", cls: "cmd" };
@@ -189,6 +214,24 @@ function HostTerminal({ siteIframeRef }) {
   const writingCacheRef = useRef(null);
   const haloHistoryRef = useRef([]);
 
+  const fetchWriting = useCallback(async () => {
+    if (writingCacheRef.current && writingCacheRef.current.length) return writingCacheRef.current;
+    const res = await fetch(ARTICLES_ENDPOINT);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const body = await res.json();
+    const raw =
+      body?.data?.articles ?? body?.payload?.articles ?? body?.articles ?? body;
+    const list = Array.isArray(raw) ? raw : [];
+    const articles = list.filter((a) => a.slug);
+    articles.sort((a, b) =>
+      a.publishedAt && b.publishedAt
+        ? new Date(b.publishedAt) - new Date(a.publishedAt)
+        : 0
+    );
+    writingCacheRef.current = articles;
+    return articles;
+  }, []);
+
   const promptStr = `himanshu@portfolio:~${cwd.length ? "/" + cwd.join("/") : ""}$`;
   const haloPrompt = "halo@portfolio:~$";
 
@@ -224,6 +267,41 @@ function HostTerminal({ siteIframeRef }) {
 
   const askHalo = useCallback(
     async (query) => {
+      if (isWritingListIntent(query)) {
+        setHaloBusy(true);
+        setHaloLog(["fetching articles…"]);
+        try {
+          const articles = await fetchWriting();
+          setHaloLog([]);
+          if (!articles.length) {
+            push("Halo: no articles found.", "sec");
+            return;
+          }
+          push("", "");
+          push("> writing — blog.buildwithhimanshu.com", "cmd");
+          push("Himanshu's writing, articles & dev notes:", "sec");
+          articles.forEach((a) => {
+            const when = a.publishedAt
+              ? new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(
+                  new Date(a.publishedAt)
+                )
+              : "—";
+            const tag = Array.isArray(a.tags) && a.tags.length
+                ? (typeof a.tags[0] === "string" ? a.tags[0] : a.tags[0]?.name)
+                : a.tag || null;
+            push(`▸ [${a.title}](https://blog.buildwithhimanshu.com/${a.slug})`, "suc");
+            push(`    ${when}${tag ? ` · ${tag}` : ""}`, "sec");
+          });
+          push("click any link to read it in a new tab.", "dim");
+        } catch (err) {
+          setHaloLog([]);
+          push("⚠️ Halo couldn't fetch the blog list — try again in a moment.", "err");
+        } finally {
+          setHaloBusy(false);
+        }
+        return;
+      }
+
       setHaloBusy(true);
       setHaloLog(["searching portfolio…"]);
       try {
@@ -280,7 +358,7 @@ function HostTerminal({ siteIframeRef }) {
         setHaloBusy(false);
       }
     },
-    [push, pushBlock]
+    [push, pushBlock, fetchWriting]
   );
 
   const sendHalo = useCallback(
@@ -508,27 +586,14 @@ function HostTerminal({ siteIframeRef }) {
           };
           const runWriting = async () => {
             if (wArg === "refresh") writingCacheRef.current = null;
-            let articles = writingCacheRef.current;
-            if (!articles || !articles.length) {
-              push("fetching articles…", "sec");
-              try {
-                const res = await fetch(ARTICLES_ENDPOINT);
-                if (!res.ok) throw new Error(`API ${res.status}`);
-                const body = await res.json();
-                const raw =
-                  body?.data?.articles ?? body?.payload?.articles ?? body?.articles ?? body;
-                const list = Array.isArray(raw) ? raw : [];
-                articles = list.filter((a) => a.slug);
-                articles.sort((a, b) =>
-                  a.publishedAt && b.publishedAt
-                    ? new Date(b.publishedAt) - new Date(a.publishedAt)
-                    : 0
-                );
-                writingCacheRef.current = articles;
-              } catch (err) {
-                push("writing: couldn't reach the blog API.", "err");
-                return;
-              }
+            const cached = writingCacheRef.current && writingCacheRef.current.length;
+            if (!cached) push("fetching articles…", "sec");
+            let articles;
+            try {
+              articles = await fetchWriting();
+            } catch (err) {
+              push("writing: couldn't reach the blog API.", "err");
+              return;
             }
             if (!articles.length) {
               push("writing: no articles found.", "sec");
@@ -563,7 +628,7 @@ function HostTerminal({ siteIframeRef }) {
         }
       }
     },
-    [cwd, promptStr, push, pushBlock, printHelp, close, haloMode, startHalo, exitHalo]
+    [cwd, promptStr, push, pushBlock, printHelp, close, haloMode, startHalo, exitHalo, fetchWriting]
   );
 
   // ---------------- completion candidates ----------------
@@ -723,7 +788,7 @@ function HostTerminal({ siteIframeRef }) {
               ))}
           {lines.map((l, i) => (
             <div key={i} className={`k9s-term-line ${l.cls || ""}`}>
-              {renderInline(l.text)}
+              {renderHaloLine(l.text, i)}
             </div>
           ))}
           {haloMode &&
