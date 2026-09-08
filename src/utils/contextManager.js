@@ -26,10 +26,13 @@ export const clampMessage = (content) => {
 
 /**
  * Build a bounded chat history for a model call.
- * @param {Array<{role:string, content:string}>} history raw exchange list
+ * Entries are normalized to {type, content} (type in user|assistant|system)
+ * regardless of whether callers pass {role} or {type} — the backend
+ * historically expected `type`, and dropping it silently erased all context.
+ * @param {Array<{role?:string, type?:string, content:string}>} history raw exchange list
  * @param {string} [runningSummary] optional compressed summary of old turns
  * @param {object} [opts] {keepRecentTurns, maxChars}
- * @returns {{messages:Array<{role:string, content:string}>, summary, truncated, droppedTurns}}
+ * @returns {{messages:Array<{type:string, content:string}>, summary, truncated, droppedTurns}}
  */
 export function buildContextWindow(history, runningSummary = '', opts = {}) {
   const safe = Array.isArray(history) ? history.filter(
@@ -38,7 +41,10 @@ export function buildContextWindow(history, runningSummary = '', opts = {}) {
   const keepRecent = opts.keepRecentTurns || KEEP_RECENT_TURNS
   const maxChars = opts.maxChars || MAX_HISTORY_CHARS
 
-  let messages = safe.map((m) => ({ role: m.role, content: clampMessage(m.content) }))
+  const speaker = (m) => m.type || m.role
+  const normalize = (m) => ({ type: speaker(m), content: clampMessage(m.content) })
+
+  let messages = safe.map(normalize)
 
   // Collapse any earlier turns into the running summary once history grows.
   let summary = runningSummary
@@ -48,23 +54,20 @@ export function buildContextWindow(history, runningSummary = '', opts = {}) {
     droppedTurns = dropCount
     const oldContent = safe
       .slice(0, dropCount)
-      .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+      .map((m) => `${(m.type || m.role) === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
       .join('\n')
     // Only materialize a summary if we don't already have one.
     if (!summary) {
       summary = oldContent.length > 2000 ? oldContent.slice(0, 2000) + ' …' : oldContent
     }
-    messages = safe.slice(dropCount).map((m) => ({
-      role: m.role,
-      content: clampMessage(m.content)
-    }))
+    messages = safe.slice(dropCount).map(normalize)
   }
 
   const payload = [] // [system summary, ...working window, current user appended by caller]
 
   // Enforce a hard char budget across the working window (safety net + slide).
   if (summary) {
-    payload.push({ role: 'system', content: SUMMARY_PREFIX + summary })
+    payload.push({ type: 'system', content: SUMMARY_PREFIX + summary })
   }
 
   let used = 0
