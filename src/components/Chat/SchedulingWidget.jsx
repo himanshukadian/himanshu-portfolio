@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FaCalendarAlt, FaCheck, FaEnvelope } from 'react-icons/fa'
+import { FaCalendarAlt, FaCheck, FaEnvelope, FaQuestion } from 'react-icons/fa'
 
 const MONO = "'Fira Code', monospace"
 const GREEN = '#00ff41'
@@ -11,7 +11,8 @@ const BORDER_DIM = 'rgba(0,255,65,0.12)'
 const stepLabels = {
   slots: 'select_slot()',
   details: 'enter_details()',
-  confirmation: 'confirmed()'
+  confirmation: 'confirmed()',
+  question: 'input.required()'
 }
 
 const buttonStyle = {
@@ -50,8 +51,8 @@ const inputStyle = {
   transition: 'all 0.2s ease'
 }
 
-const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, onMeetingScheduled }) => {
-  const [currentStep, setCurrentStep] = useState('slots') // slots, details, confirmation
+const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, onMeetingScheduled, mode = 'schedule', question = null, onAnswer = null }) => {
+  const [currentStep, setCurrentStep] = useState(mode === 'question' ? 'question' : 'slots')
   const [availableSlots, setAvailableSlots] = useState([])
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -59,6 +60,7 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({ name: '', email: '', message: '' })
   const [scheduledMeeting, setScheduledMeeting] = useState(null)
+  const [answered, setAnswered] = useState(false)
 
   const loadAvailableSlots = async () => {
     setLoading(true)
@@ -132,16 +134,23 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
   }
 
   const resetWidget = () => {
-    setCurrentStep('slots')
+    setCurrentStep(mode === 'question' ? 'question' : 'slots')
     setSelectedSlot(null)
     setFormData({ name: '', email: '', message: '' })
     setScheduledMeeting(null)
+    setAnswered(false)
     setError('')
   }
 
   const handleClose = () => {
     resetWidget()
     onHide()
+  }
+
+  const handleAnswer = (value) => {
+    setAnswered(true)
+    if (onAnswer) onAnswer(value)
+    setTimeout(() => handleClose(), 800)
   }
 
   const formatDateTime = (dateString) => {
@@ -164,6 +173,16 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
     <FaEnvelope style={{ color: GREEN, marginRight: '8px' }} />
   ) : (
     <FaCalendarAlt style={{ color: GREEN, marginRight: '8px' }} />
+  )
+
+  const modeIcon = mode === 'question' ? (
+    <FaQuestion style={{ color: GREEN, marginRight: '8px' }} />
+  ) : (
+    (meetingSuggestion?.meetingType || 'general') === 'general' ? (
+      <FaEnvelope style={{ color: GREEN, marginRight: '8px' }} />
+    ) : (
+      <FaCalendarAlt style={{ color: GREEN, marginRight: '8px' }} />
+    )
   )
 
   if (!show) return null
@@ -217,7 +236,7 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
             <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'rgba(0,255,65,0.12)' }} />
           </div>
           <div style={{ color: GREEN, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {meetingIcon} {'>'} {stepLabels[currentStep] || 'schedule()'}
+            {modeIcon} {'>'} {stepLabels[currentStep] || 'schedule()'}
           </div>
           <button
             onClick={handleClose}
@@ -253,6 +272,40 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
               fontFamily: MONO
             }}>
               {'>'} error: {error}
+            </div>
+          )}
+
+          {/* Question mode */}
+          {mode === 'question' && question && currentStep === 'question' && (
+            <div>
+              <p style={{ color: GREEN, fontSize: '12px', margin: '0 0 14px 0', fontFamily: MONO, lineHeight: 1.5 }}>
+                {'>'} {question.prompt}
+              </p>
+              {question.options && question.options.map((opt, i) => (
+                <button
+                  key={i}
+                  disabled={answered}
+                  onClick={() => handleAnswer(opt.value)}
+                  style={{
+                    ...buttonStyle,
+                    width: '100%',
+                    textAlign: 'left',
+                    marginBottom: '6px',
+                    opacity: answered ? 0.4 : 1,
+                    cursor: answered ? 'not-allowed' : 'pointer',
+                    color: answered ? DIM : GREEN
+                  }}
+                  onMouseEnter={(e) => !answered && buttonHover(e, true)}
+                  onMouseLeave={(e) => !answered && buttonHover(e, false)}
+                >
+                  <span style={{ color: FAINT, fontSize: '11px' }}>[{String.fromCharCode(65 + i)}]</span> {opt.label}
+                </button>
+              ))}
+              {answered && (
+                <p style={{ color: GREEN, fontSize: '11px', margin: '12px 0 0 0', fontFamily: MONO }}>
+                  {'>'} received.
+                </p>
+              )}
             </div>
           )}
 

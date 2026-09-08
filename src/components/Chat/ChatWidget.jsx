@@ -51,6 +51,7 @@ const ChatWidget = () => {
   const [aiOnline, setAiOnline] = useState(() => aiService.getOnline())
   const [showScheduling, setShowScheduling] = useState(false)
   const [meetingSuggestion, setMeetingSuggestion] = useState(null)
+  const [popupQuestion, setPopupQuestion] = useState(null)
   const messagesEndRef = useRef(null)
 
   const getColors = () => {
@@ -309,10 +310,58 @@ const ChatWidget = () => {
     commitMessages([...messagesRef.current, summary])
   }, [commitMessages])
 
+  const handleQuestionAnswer = useCallback((value) => {
+    setPopupQuestion(null)
+    setShowScheduling(false)
+    aiService.resolveAsk(value)
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: makeMessageId(),
+        type: 'user',
+        content: String(value),
+        timestamp: new Date()
+      },
+      {
+        id: makeMessageId(),
+        type: 'assistant',
+        content: `> input.recorded() — thanks, noted: **${value}**`,
+        streaming: false,
+        sources: [],
+        suggestions: [],
+        model: 'local',
+        contextUsed: false,
+        timestamp: new Date()
+      }
+    ])
+  }, [])
+
   const handleOpen = useCallback(() => {
     setIsOpen(true)
     setError(null)
   }, [])
+
+  const askPopupQuestion = useCallback((question) => {
+    const q = question && question.question ? question.question : question
+    setIsOpen(true)
+    setPopupQuestion({ prompt: q.prompt, options: q.options, label: q.label })
+    setShowScheduling(true)
+  }, [])
+
+  useEffect(() => {
+    window.__haloAsk = askPopupQuestion
+    window.__haloAskSpec = (spec) => aiService.ask(spec)
+    return () => { delete window.__haloAsk; delete window.__haloAskSpec }
+  }, [askPopupQuestion])
+
+  useEffect(() => {
+    const unsub = aiService.subscribe((spec) => {
+      if (spec && spec.mode === 'question' && spec.question) {
+        askPopupQuestion(spec.question)
+      }
+    })
+    return unsub
+  }, [askPopupQuestion])
 
   const quickSuggestions = [
     { text: "Tell me about your work experience", emoji: "" },
@@ -420,12 +469,15 @@ const ChatWidget = () => {
           }} />
         </button>
       </div>
-      <SchedulingWidget
+<SchedulingWidget
         aiService={aiService}
         show={showScheduling}
-        onHide={() => setShowScheduling(false)}
+        onHide={() => { setShowScheduling(false); setPopupQuestion(null) }}
         meetingSuggestion={meetingSuggestion}
         onMeetingScheduled={handleMeetingScheduled}
+        mode={popupQuestion ? 'question' : 'schedule'}
+        question={popupQuestion}
+        onAnswer={handleQuestionAnswer}
       />
       </>
     )
@@ -830,9 +882,12 @@ const ChatWidget = () => {
 <SchedulingWidget
         aiService={aiService}
         show={showScheduling}
-        onHide={() => setShowScheduling(false)}
+        onHide={() => { setShowScheduling(false); setPopupQuestion(null) }}
         meetingSuggestion={meetingSuggestion}
         onMeetingScheduled={handleMeetingScheduled}
+        mode={popupQuestion ? 'question' : 'schedule'}
+        question={popupQuestion}
+        onAnswer={handleQuestionAnswer}
       />
 </>
     )

@@ -11,9 +11,51 @@ class AIService {
     this.streamEndpoint = `${this.backendUrl}/api/ai/stream`
     this.online = true
     this.lastMeetingSuggestion = null
+    this.listeners = []
+    this.askSpec = null
+    this.askResolvers = []
 
     devLog('✅ AI Assistant ready with backend API')
     devLog(`🚀 Backend URL: ${this.backendUrl}`)
+  }
+
+  subscribe(fn) {
+    this.listeners.push(fn)
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== fn)
+    }
+  }
+
+  emitSpec(spec) {
+    this.askSpec = spec
+    this.listeners.forEach((fn) => fn(spec))
+  }
+
+  // Pause and collect a structured answer from the visitor via the popup widget.
+  ask(question) {
+    const spec = {
+      mode: 'question',
+      question: {
+        prompt: question.prompt,
+        options: question.options,
+        label: question.label
+      }
+    }
+    this.emitSpec(spec)
+    return new Promise((resolve) => {
+      this.askResolvers.push({ spec, resolve })
+    })
+  }
+
+  resolveAsk(value) {
+    const next = this.askResolvers.shift()
+    if (next) next.resolve(value)
+    this.askSpec = null
+    return next ? next.spec : null
+  }
+
+  hasPendingAsk() {
+    return this.askResolvers.length > 0
   }
 
   getOnline() {
@@ -249,12 +291,22 @@ class AIService {
       if (analysis.queryLength > 50) {
         return await this.processResumeCustomization(userQuery)
       }
-      try {
-        return await this.generateAPIResponse(userQuery, chatHistory, opts)
-      } catch (error) {
-        devLog('🔄 AI failed for short resume query, using resume fallback')
-        return this.requestJobDescription()
+      // Spec-driven ask: gathering the target role up front via the popup makes
+      // the resume customization actionable instead of bouncing back a text prompt.
+      const jobDesc = await this.ask({
+        prompt: 'Which role should I tailor your resume for? Paste the job description or pick a focus.',
+        label: 'resume.target()',
+        options: [
+          { label: 'Paste job description', value: 'Paste job description' },
+          { label: 'Software Engineer / Full-stack', value: 'Software Engineer / Full-stack' },
+          { label: 'AI / ML Engineer', value: 'AI / ML Engineer' },
+          { label: 'Cloud / DevOps', value: 'Cloud / DevOps' }
+        ]
+      }).catch(() => '')
+      if (jobDesc) {
+        return await this.processResumeCustomization(jobDesc)
       }
+      return this.requestJobDescription()
     } catch (error) {
       console.error('❌ Resume handler error:', error)
       return this.generateRuleBasedResponse()
