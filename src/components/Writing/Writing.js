@@ -11,9 +11,24 @@ const fullDateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
+function toPlainText(html) {
+  return String(html || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<img[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function estimateReadingTime(article) {
-  const text = article.content || article.description || "";
-  const words = text.trim().split(/\s+/).length;
+  const words = toPlainText(article.content || article.description).split(" ").filter(Boolean).length;
   const minutes = Math.max(1, Math.round(words / 200));
   return `${minutes} min read`;
 }
@@ -74,7 +89,9 @@ function Writing() {
         {status === "ready" && (
           <div className="writing-list" role="list" aria-labelledby="writing-heading">
             {articles.map((article) => {
-              const excerpt = String(article.description || article.excerpt || "");
+              const excerpt = toPlainText(article.excerpt || article.description || "");
+              const shortExcerpt =
+                excerpt.length > 180 ? excerpt.slice(0, 180).trimEnd() + "…" : excerpt;
               const rawTags = Array.isArray(article.tags) ? article.tags.slice(0, 3) : [];
               const tags = rawTags.map((t) =>
                 (typeof t === "string" ? t : t && (t.name || t.title || t.slug)) || ""
@@ -101,7 +118,7 @@ function Writing() {
                     <span className="writing-card-separator">·</span>
                     <span className="writing-card-reading-time">{readingTime}</span>
                   </div>
-                  {excerpt && <p className="writing-card-excerpt">{excerpt}</p>}
+                  {shortExcerpt && <p className="writing-card-excerpt">{shortExcerpt}</p>}
                   {tags.length > 0 && (
                     <div className="writing-card-tags">
                       {tags.map((tag) => (
