@@ -1,0 +1,142 @@
+/* ============================================================
+   NO-HOVER OVERRIDES — remove hover effects from buttons & links
+   Restores each element's resting look on hover.
+   Keyboard focus (:focus-visible) rings and :active presses kept.
+   Imported LAST (after style.css / blog.css) so it wins the cascade.
+   ============================================================ */
+
+/* --- Generic link hover -> resting terminal-link look --- */
+a:hover {
+  color: var(--primary-color) !important;
+  border-bottom: 1px dotted var(--primary-color) !important;
+  border-bottom-width: 1px !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* --- Generic button hover -> no lift / glow --- */
+button:hover {
+  transform: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+/* Restore blog writing links that intentionally keep a soft hover */
+.writing-card-title:hover {
+  color: var(--blog-accent) !important;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.3) !important;
+}
+
+.writing-all-link:hover {
+  text-shadow: 0 0 12px rgba(0, 255, 65, 0.4) !important;
+}
+
+/* --- Navbar links --- */
+.meyriva-nav-link:hover,
+.modern-nav-link:hover {
+  color: rgba(255, 255, 255, 0.5) !important;
+  background: none !important;
+  text-shadow: none !important;
+}
+
+.meyriva-nav-link.active:hover,
+.modern-nav-link.active:hover {
+  color: #00ff41 !important;
+  background: rgba(0, 255, 65, 0.08) !important;
+}
+
+.k9s-nav-item:hover {
+  border-color: transparent !important;
+}
+
+/* --- Navbar github button --- */
+.meyriva-github-btn:hover {
+  background: transparent !important;
+  border-color: rgba(0, 255, 65, 0.3) !important;
+  color: #00ff41 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* --- Theme toggle button --- */
+.meyriva-theme-toggle:hover,
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.2) !important;
+  transform: none !important;
+  color: #ffffff !important;
+}
+
+/* --- Mobile navbar toggle --- */
+.meyriva-navbar-toggle:hover,
+.navbar-toggler:hover {
+  background: rgba(14, 58, 58, 0.4) !important;
+  border-color: rgba(14, 58, 58, 0.6) !important;
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+/* --- Generic .btn family (unified button theme resting values) --- */
+.btn:hover,
+.btn-primary:hover,
+.download-resume-btn:hover,
+.btn-outline-secondary:hover,
+button[type="submit"]:hover,
+button[type="button"]:not(.meyriva-slider-btn):not(.meyriva-slider-dot):not(.back-to-top-btn):not(.btn-close):not(.chat-mic-btn):hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 1px 2px 0 rgba(0, 0, 0, 0.24) !important;
+  transform: none !important;
+}
+
+/* --- Primary CTA (solid terminal green) --- */
+.btn-accent:hover {
+  background: var(--accent) !important;
+  color: #0a2218 !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.2) !important;
+  transform: none !important;
+}
+
+/* --- Ghost/outline CTA --- */
+.btn-ghost:hover {
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* --- Resume download button --- */
+.resume-download-btn:hover {
+  background: transparent !important;
+  color: #00ff41 !important;
+  border-color: #00ff41 !important;
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.15) !important;
+  transform: none !important;
+}
+
+/* --- Home social icons --- */
+.home-social-icons:hover {
+  color: inherit !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.home-social-icons:hover::before {
+  transform: scale(0.9) !important;
+  box-shadow: none !important;
+}
+
+/* --- Footer social icons --- */
+.footer-icons a:hover {
+  color: var(--primary-color) !important;
+  background: transparent !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}

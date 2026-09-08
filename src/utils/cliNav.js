@@ -5,7 +5,7 @@ export const ROUTES = [
   { cmd: "about", num: "2", aliases: ["a"], label: "about", to: "/#about" },
   { cmd: "projects", num: "3", aliases: ["p"], label: "projects", to: "/#projects" },
   { cmd: "resume", num: "4", aliases: ["r"], label: "resume", to: "/#resume" },
-  { cmd: "writing", num: "5", aliases: ["w"], label: "writing", to: "/#writing" },
+  { cmd: "writing", num: "5", aliases: ["w"], label: "writings", to: "/#writing" },
   { cmd: "contact", num: "6", aliases: ["c"], label: "contact", to: "/#contact" },
   { cmd: "github", num: "g", aliases: ["gh"], label: "github", to: resumeData.github, external: true },
 ];
