@@ -662,6 +662,7 @@ const startHalo = useCallback(() => {
 
       let result = null;
       let partialStream = "";
+      let action = null;
 
       const haloWindow = buildContextWindow(haloHistoryRef.current);
 
@@ -681,6 +682,19 @@ const startHalo = useCallback(() => {
           }
           streamingLineRef.current = "";
           setStreamingLine("");
+          if (cached.action === "resume") {
+            showAsk(
+              "Which role should I tailor your resume for? Paste the job description or pick a focus.",
+              [
+                { label: "Paste job description", value: "Paste job description" },
+                { label: "Software Engineer / Full-stack", value: "Software Engineer / Full-stack" },
+                { label: "AI / ML Engineer", value: "AI / ML Engineer" },
+                { label: "Cloud / DevOps", value: "Cloud / DevOps" },
+              ],
+              "resume.target()",
+              "resume-target"
+            );
+          }
           return;
         }
       }
@@ -744,6 +758,7 @@ const startHalo = useCallback(() => {
             } else if (event && event.type === "done") {
               if (Array.isArray(event.sources) && event.sources.length) sources = event.sources;
               if (typeof event.model === "string" && event.model) model = event.model;
+              action = typeof event.action === "string" ? event.action : action;
             } else if (event && event.type === "error") {
               streamFailed = typeof event.message === "string" && event.message ? event.message : "stream error";
               break;
@@ -770,9 +785,9 @@ const startHalo = useCallback(() => {
           });
         }
 
-        result = { text: finalText, sources, model };
+        result = { text: finalText, sources, model, action };
         if (!haloScreen.blocked) {
-          responseCache.set(`halo:${query}`, { text: finalText, sources, model, fellback: false, contextUsed: true, suggestions: [] });
+          responseCache.set(`halo:${query}`, { text: finalText, sources, model, action, fellback: false, contextUsed: true, suggestions: [] });
         }
 
         const h = haloHistoryRef.current;
@@ -857,19 +872,7 @@ const startHalo = useCallback(() => {
       setSuggestions([]);
       const intent = aiService.categorizeQuery(query);
 
-      if (intent.category === "meeting_scheduling") {
-        showAsk(
-          "Pick a purpose so I can line up a call:",
-          [
-            { label: "Career opportunities", value: "Career opportunities" },
-            { label: "Tech / AI discussion", value: "Tech / AI discussion" },
-            { label: "Collaboration project", value: "Collaboration project" },
-            { label: "Just a quick chat", value: "Just a quick chat" },
-          ],
-          "meeting.purpose()",
-          "meeting-purpose"
-        );
-      } else if (intent.category === "resume_customization") {
+      if (action === "resume") {
         if (query.length > 50) {
           await handleResumeCustomize(query);
         } else {
@@ -885,6 +888,18 @@ const startHalo = useCallback(() => {
             "resume-target"
           );
         }
+      } else if (intent.category === "meeting_scheduling") {
+        showAsk(
+          "Pick a purpose so I can line up a call:",
+          [
+            { label: "Career opportunities", value: "Career opportunities" },
+            { label: "Tech / AI discussion", value: "Tech / AI discussion" },
+            { label: "Collaboration project", value: "Collaboration project" },
+            { label: "Just a quick chat", value: "Just a quick chat" },
+          ],
+          "meeting.purpose()",
+          "meeting-purpose"
+        );
       } else {
         const suggestions = aiService.getSuggestions(intent.category, query);
         showSuggestionsRow(suggestions);
