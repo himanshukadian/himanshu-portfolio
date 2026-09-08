@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ChatMessage from './ChatMessage'
 import MessageInput from './MessageInput'
+import SchedulingWidget from './SchedulingWidget'
 import { aiService } from '../../utils/aiService'
 
 const MONO = "'Fira Code', monospace"
@@ -48,6 +49,8 @@ const ChatWidget = () => {
   const [expandedSection, setExpandedSection] = useState(null)
   const [error, setError] = useState(null)
   const [aiOnline, setAiOnline] = useState(() => aiService.getOnline())
+  const [showScheduling, setShowScheduling] = useState(false)
+  const [meetingSuggestion, setMeetingSuggestion] = useState(null)
   const messagesEndRef = useRef(null)
 
   const getColors = () => {
@@ -125,6 +128,8 @@ const ChatWidget = () => {
   const handleSendMessage = useCallback(async (messageText) => {
     const text = String(messageText || '').trim()
     if (!text || busyRef.current) return
+
+    const meetingIntent = aiService.categorizeQuery(text).category === 'meeting_scheduling'
 
     busyRef.current = true
     setShowWelcome(false)
@@ -246,6 +251,17 @@ const ChatWidget = () => {
       applyResult(result)
     }
     settle()
+
+    if (meetingIntent) {
+      setMeetingSuggestion({
+        meetingType: 'general',
+        duration: 30,
+        description: 'General intro call — career, collaboration, or tech talk',
+        agenda: ['Introduction', 'Discussion', 'Next steps'],
+        autoMessage: 'Pick a time that works for you; you\'ll get a confirmation email.'
+      })
+      setShowScheduling(true)
+    }
   }, [commitMessages])
 
   const handleQuickAction = useCallback((query) => {
@@ -272,6 +288,21 @@ const ChatWidget = () => {
     setIsOpen(false)
     setError(null)
   }, [])
+
+  const handleMeetingScheduled = useCallback((meetingData) => {
+    const summary = {
+      id: makeMessageId(),
+      type: 'assistant',
+      content: `📅 **Meeting scheduled!** ${meetingData.meetingId} — ${new Date(meetingData.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${meetingData.meetingLink ? `\n\n🔗 ${meetingData.meetingLink}` : ''}`,
+      streaming: false,
+      sources: [],
+      suggestions: [],
+      model: 'scheduling',
+      contextUsed: false,
+      timestamp: new Date()
+    }
+    commitMessages([...messagesRef.current, summary])
+  }, [commitMessages])
 
   const handleOpen = useCallback(() => {
     setIsOpen(true)
@@ -332,6 +363,7 @@ const ChatWidget = () => {
 
   if (!isOpen) {
     return (
+      <>
       <div style={{
         position: 'fixed',
         bottom: '20px',
@@ -383,10 +415,19 @@ const ChatWidget = () => {
           }} />
         </button>
       </div>
+      <SchedulingWidget
+        aiService={aiService}
+        show={showScheduling}
+        onHide={() => setShowScheduling(false)}
+        meetingSuggestion={meetingSuggestion}
+        onMeetingScheduled={handleMeetingScheduled}
+      />
+      </>
     )
   }
 
   return (
+    <>
     <div className="chat-widget" style={{
       position: 'fixed',
       bottom: '20px',
@@ -777,11 +818,19 @@ const ChatWidget = () => {
           padding: '10px 12px',
           flexShrink: 0
         }}>
-          <MessageInput onSendMessage={handleSendMessage} disabled={isLoading} colors={colors} />
+<MessageInput onSendMessage={handleSendMessage} disabled={isLoading} colors={colors} />
         </div>
       </div>
-    </div>
-  )
+      </div>
+<SchedulingWidget
+        aiService={aiService}
+        show={showScheduling}
+        onHide={() => setShowScheduling(false)}
+        meetingSuggestion={meetingSuggestion}
+        onMeetingScheduled={handleMeetingScheduled}
+      />
+</>
+    )
 }
-
+ 
 export default ChatWidget

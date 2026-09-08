@@ -1,408 +1,480 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Modal, Form, Alert, Card, Badge, Spinner } from 'react-bootstrap';
-import { FaCalendarAlt, FaClock, FaCheck } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react'
+import { FaCalendarAlt, FaCheck, FaEnvelope } from 'react-icons/fa'
 
-const SchedulingWidget = ({ 
-  aiService, 
-  show, 
-  onHide, 
-  meetingSuggestion = null,
-  onMeetingScheduled 
-}) => {
-  const [currentStep, setCurrentStep] = useState('suggestion'); // suggestion, slots, details, confirmation
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: ''
-  });
-  const [scheduledMeeting, setScheduledMeeting] = useState(null);
+const MONO = "'Fira Code', monospace"
+const GREEN = '#00ff41'
+const DIM = 'rgba(255,255,255,0.5)'
+const FAINT = 'rgba(255,255,255,0.3)'
+const BORDER = 'rgba(0,255,65,0.25)'
+const BORDER_DIM = 'rgba(0,255,65,0.12)'
 
-  // Load available slots when component mounts or meeting type changes
-  useEffect(() => {
-    if (show && meetingSuggestion && currentStep === 'slots') {
-      loadAvailableSlots(meetingSuggestion.meetingType);
-    }
-  }, [show, meetingSuggestion, currentStep]); // loadAvailableSlots is defined inside component, stable reference
+const stepLabels = {
+  slots: 'select_slot()',
+  details: 'enter_details()',
+  confirmation: 'confirmed()'
+}
 
-  const loadAvailableSlots = async (meetingType) => {
-    setLoading(true);
-    setError('');
-    
+const buttonStyle = {
+  background: 'transparent',
+  border: `1px solid ${BORDER}`,
+  borderRadius: '4px',
+  color: GREEN,
+  cursor: 'pointer',
+  padding: '8px 16px',
+  fontSize: '12px',
+  fontWeight: 400,
+  fontFamily: MONO,
+  letterSpacing: '0.08em',
+  transition: 'all 0.2s ease',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '8px'
+}
+
+const buttonHover = (e, hover = true) => {
+  e.currentTarget.style.background = hover ? 'rgba(0,255,65,0.08)' : 'transparent'
+  e.currentTarget.style.borderColor = hover ? GREEN : BORDER
+}
+
+const inputStyle = {
+  width: '100%',
+  background: 'rgba(0,255,65,0.04)',
+  border: `1px solid ${BORDER_DIM}`,
+  borderRadius: '4px',
+  padding: '8px 10px',
+  color: '#ffffff',
+  fontSize: '12px',
+  fontFamily: MONO,
+  outline: 'none',
+  caretColor: GREEN,
+  transition: 'all 0.2s ease'
+}
+
+const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, onMeetingScheduled }) => {
+  const [currentStep, setCurrentStep] = useState('slots') // slots, details, confirmation
+  const [availableSlots, setAvailableSlots] = useState([])
+  const [selectedSlot, setSelectedSlot] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
+  const [error, setError] = useState('')
+  const [formData, setFormData] = useState({ name: '', email: '', message: '' })
+  const [scheduledMeeting, setScheduledMeeting] = useState(null)
+
+  const loadAvailableSlots = async () => {
+    setLoading(true)
+    setError('')
     try {
-      const slotsData = await aiService.getAvailableSlots(meetingType);
-      if (slotsData && slotsData.availableSlots) {
-        setAvailableSlots(slotsData.availableSlots);
+      const slotsData = await aiService.getAvailableSlots(meetingSuggestion?.meetingType || 'general')
+      if (slotsData && Array.isArray(slotsData.availableSlots) && slotsData.availableSlots.length > 0) {
+        setAvailableSlots(slotsData.availableSlots)
       } else {
-        setError('No available slots found. Please try again later.');
+        setAvailableSlots([])
+        setError('No open slots right now — try the Calendly link or refresh.')
       }
     } catch (err) {
-      setError('Failed to load available time slots.');
-      console.error('Failed to load slots:', err);
+      setError('Failed to load available time slots.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
-
-  const handleSlotSelect = (slot) => {
-    setSelectedSlot(slot);
-    setCurrentStep('details');
-  };
-
-  const handleFormChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleScheduleMeeting = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const meetingData = {
-        name: formData.name,
-        email: formData.email,
-        message: formData.message,
-        selectedSlot: selectedSlot.datetime,
-        meetingType: meetingSuggestion.meetingType,
-        duration: meetingSuggestion.duration,
-        agenda: meetingSuggestion.agenda
-      };
-
-      const result = await aiService.scheduleMeeting(meetingData);
-      
-      if (result.status === 'success') {
-        setScheduledMeeting(result.data);
-        setCurrentStep('confirmation');
-        
-        // Clear the meeting suggestion from AI service
-        aiService.clearMeetingSuggestion();
-        
-        // Notify parent component
-        if (onMeetingScheduled) {
-          onMeetingScheduled(result.data);
-        }
-      } else {
-        setError(result.message || 'Failed to schedule meeting');
-      }
-    } catch (err) {
-      setError('Failed to schedule meeting. Please try again.');
-      console.error('Failed to schedule meeting:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetWidget = () => {
-    setCurrentStep('suggestion');
-    setSelectedSlot(null);
-    setFormData({ name: '', email: '', message: '' });
-    setScheduledMeeting(null);
-    setError('');
-  };
-
-  const handleClose = () => {
-    resetWidget();
-    onHide();
-  };
-
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Kolkata'
-    });
-  };
-
-  const getMeetingTypeIcon = (type) => {
-    const icons = {
-      'technical_discussion': '⚡',
-      'collaboration': '🤝',
-      'interview': '💼',
-      'mentoring': '🎓',
-      'general': '💬'
-    };
-    return icons[type] || '📅';
-  };
-
-  const getMeetingTypeBadgeColor = (type) => {
-    const colors = {
-      'technical_discussion': 'primary',
-      'collaboration': 'success',
-      'interview': 'warning',
-      'mentoring': 'info',
-      'general': 'secondary'
-    };
-    return colors[type] || 'secondary';
-  };
-
-  if (!meetingSuggestion) {
-    return null;
   }
 
+  useEffect(() => {
+    if (show) {
+      setCurrentStep('slots')
+      setSelectedSlot(null)
+      setScheduledMeeting(null)
+      setError('')
+      loadAvailableSlots()
+    }
+  }, [show])
+
+  const handleSlotSelect = (slot) => {
+    setSelectedSlot(slot)
+    setCurrentStep('details')
+    setError('')
+  }
+
+  const handleFormChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleScheduleMeeting = async (e) => {
+    e.preventDefault()
+    if (!formData.name || !formData.email || !selectedSlot) return
+    setScheduling(true)
+    setError('')
+
+    const meetingData = {
+      name: formData.name,
+      email: formData.email,
+      message: formData.message,
+      selectedSlot: selectedSlot.datetime,
+      meetingType: meetingSuggestion?.meetingType || 'general',
+      duration: meetingSuggestion?.duration || 30,
+      agenda: meetingSuggestion?.agenda || ['General introduction call']
+    }
+
+    try {
+      const result = await aiService.scheduleMeeting(meetingData)
+      if (result.status === 'success') {
+        setScheduledMeeting(result.data)
+        setCurrentStep('confirmation')
+        aiService.clearMeetingSuggestion()
+        if (onMeetingScheduled) onMeetingScheduled(result.data)
+      } else {
+        setError(result.message || 'Failed to schedule meeting')
+      }
+    } catch (err) {
+      setError('Failed to schedule meeting. Please try again.')
+    } finally {
+      setScheduling(false)
+    }
+  }
+
+  const resetWidget = () => {
+    setCurrentStep('slots')
+    setSelectedSlot(null)
+    setFormData({ name: '', email: '', message: '' })
+    setScheduledMeeting(null)
+    setError('')
+  }
+
+  const handleClose = () => {
+    resetWidget()
+    onHide()
+  }
+
+  const formatDateTime = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Kolkata'
+      })
+    } catch (e) {
+      return dateString
+    }
+  }
+
+  const meetingIcon = (meetingSuggestion?.meetingType || 'general') === 'general' ? (
+    <FaEnvelope style={{ color: GREEN, marginRight: '8px' }} />
+  ) : (
+    <FaCalendarAlt style={{ color: GREEN, marginRight: '8px' }} />
+  )
+
+  if (!show) return null
+
   return (
-    <Modal 
-      show={show} 
-      onHide={handleClose} 
-      size="lg" 
-      centered
-      className="scheduling-modal"
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.78)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 10020,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) handleClose()
+      }}
     >
-      <Modal.Header closeButton>
-        <Modal.Title>
-          {getMeetingTypeIcon(meetingSuggestion.meetingType)} Schedule a Meeting
-        </Modal.Title>
-      </Modal.Header>
-
-      <Modal.Body>
-        {error && (
-          <Alert variant="danger" dismissible onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
-        {/* Step 1: Meeting Suggestion */}
-        {currentStep === 'suggestion' && (
-          <div>
-            <Card className="mb-3">
-              <Card.Body>
-                <div className="d-flex justify-content-between align-items-start mb-3">
-                  <h5 className="mb-0">{meetingSuggestion.description}</h5>
-                  <Badge bg={getMeetingTypeBadgeColor(meetingSuggestion.meetingType)}>
-                    {meetingSuggestion.meetingType.replace('_', ' ').toUpperCase()}
-                  </Badge>
-                </div>
-                
-                <div className="mb-3">
-                  <FaClock className="me-2" />
-                  <strong>Duration:</strong> {meetingSuggestion.duration} minutes
-                </div>
-
-                <div className="mb-3">
-                  <strong>Suggested Agenda:</strong>
-                  <ul className="mt-2">
-                    {meetingSuggestion.agenda.map((item, index) => (
-                      <li key={index}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <p className="text-muted mb-0">
-                  {meetingSuggestion.autoMessage}
-                </p>
-              </Card.Body>
-            </Card>
-
-            <div className="d-flex justify-content-between">
-              <Button variant="outline-secondary" onClick={handleClose}>
-                Maybe Later
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={() => setCurrentStep('slots')}
-              >
-                <FaCalendarAlt className="me-2" />
-                View Available Times
-              </Button>
-            </div>
+      <div
+        style={{
+          width: 'min(480px, 100%)',
+          maxHeight: '620px',
+          background: '#000000',
+          borderRadius: '4px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,255,65,0.15)',
+          border: `1px solid ${BORDER}`,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          fontFamily: MONO
+        }}
+      >
+        {/* header */}
+        <div
+          style={{
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: `1px solid ${BORDER}`,
+            flexShrink: 0,
+            background: '#000000'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'rgba(0,255,65,0.5)' }} />
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'rgba(0,255,65,0.25)' }} />
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'rgba(0,255,65,0.12)' }} />
           </div>
-        )}
+          <div style={{ color: GREEN, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {meetingIcon} {'>'} {stepLabels[currentStep] || 'schedule()'}
+          </div>
+          <button
+            onClick={handleClose}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${BORDER_DIM}`,
+              borderRadius: '4px',
+              color: DIM,
+              fontSize: '12px',
+              cursor: 'pointer',
+              padding: '2px 8px',
+              fontFamily: MONO
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#ff5f56'; e.currentTarget.style.borderColor = 'rgba(255,95,86,0.4)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = DIM; e.currentTarget.style.borderColor = BORDER_DIM }}
+            aria-label="Close scheduling widget"
+          >
+            [x]
+          </button>
+        </div>
 
-        {/* Step 2: Time Slot Selection */}
-        {currentStep === 'slots' && (
-          <div>
-            <h5 className="mb-3">Select a Time Slot</h5>
-            
-            {loading ? (
-              <div className="text-center py-4">
-                <Spinner animation="border" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </Spinner>
-                <p className="mt-2">Loading available time slots...</p>
-              </div>
-            ) : (
-              <div className="row">
-                {availableSlots.slice(0, 8).map((slot, index) => (
-                  <div key={index} className="col-md-6 mb-3">
-                    <Card 
-                      className="h-100 slot-card" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => handleSlotSelect(slot)}
-                    >
-                      <Card.Body className="text-center">
-                        <FaCalendarAlt className="mb-2 text-primary" size={20} />
-                        <div className="fw-bold">{slot.display}</div>
-                        <small className="text-muted">IST</small>
-                      </Card.Body>
-                    </Card>
+        {/* body */}
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '18px 16px' }}>
+          {error && (
+            <div style={{
+              background: 'rgba(255,0,0,0.08)',
+              color: '#ff5f56',
+              borderRadius: '4px',
+              border: '1px solid rgba(255,0,0,0.25)',
+              padding: '8px 10px',
+              fontSize: '11px',
+              marginBottom: '14px',
+              fontFamily: MONO
+            }}>
+              {'>'} error: {error}
+            </div>
+          )}
+
+          {/* Step: slots */}
+          {currentStep === 'slots' && (
+            <div>
+              <p style={{ color: DIM, fontSize: '11px', margin: '0 0 12px 0', fontFamily: MONO }}>
+                {'>'} pick an open slot (IST)
+              </p>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                    <div className="chat-loading-dot" />
+                    <div className="chat-loading-dot" />
+                    <div className="chat-loading-dot" />
                   </div>
-                ))}
-              </div>
-            )}
-
-            <div className="d-flex justify-content-between mt-3">
-              <Button 
-                variant="outline-secondary" 
-                onClick={() => setCurrentStep('suggestion')}
-              >
-                Back
-              </Button>
-              {availableSlots.length === 0 && !loading && (
-                <Button 
-                  variant="primary" 
-                  onClick={() => loadAvailableSlots(meetingSuggestion.meetingType)}
-                >
-                  Refresh Slots
-                </Button>
+                  <p style={{ color: DIM, fontSize: '11px', marginTop: '10px', fontFamily: MONO }}>
+                    loading.calendar()
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  {availableSlots.slice(0, 8).map((slot, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSlotSelect(slot)}
+                      style={{
+                        background: 'rgba(0,255,65,0.03)',
+                        border: `1px solid ${BORDER_DIM}`,
+                        borderRadius: '4px',
+                        padding: '10px 8px',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        textAlign: 'center',
+                        fontFamily: MONO
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = GREEN
+                        e.currentTarget.style.background = 'rgba(0,255,65,0.07)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = BORDER_DIM
+                        e.currentTarget.style.background = 'rgba(0,255,65,0.03)'
+                      }}
+                    >
+                      <div style={{ color: GREEN, fontSize: '10px', marginBottom: '4px' }}>
+                        {'>>'}
+                      </div>
+                      <div style={{ fontSize: '11px', lineHeight: '1.4' }}>{slot.display}</div>
+                      <div style={{ color: FAINT, fontSize: '9px', marginTop: '4px' }}>
+                        {slot.timezone || 'IST'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!loading && availableSlots.length === 0 && (
+                <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                  <button style={buttonStyle} onMouseEnter={(e) => buttonHover(e, true)} onMouseLeave={(e) => buttonHover(e, false)} onClick={loadAvailableSlots}>
+                    {'>>'} refresh
+                  </button>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step 3: Contact Details */}
-        {currentStep === 'details' && selectedSlot && (
-          <div>
-            <h5 className="mb-3">Meeting Details</h5>
-            
-            <Card className="mb-3">
-              <Card.Body>
-                <div className="row">
-                  <div className="col-sm-6">
-                    <strong>Meeting Type:</strong><br />
-                    {meetingSuggestion.description}
-                  </div>
-                  <div className="col-sm-6">
-                    <strong>Selected Time:</strong><br />
-                    {formatDateTime(selectedSlot.datetime)}
-                  </div>
+          {/* Step: details */}
+          {currentStep === 'details' && selectedSlot && (
+            <div>
+              <div style={{
+                background: 'rgba(0,255,65,0.04)',
+                border: `1px solid ${BORDER_DIM}`,
+                borderRadius: '4px',
+                padding: '10px 12px',
+                marginBottom: '14px',
+                fontFamily: MONO
+              }}>
+                <div style={{ color: DIM, fontSize: '10px', marginBottom: '4px' }}>selected_time:</div>
+                <div style={{ color: GREEN, fontSize: '12px' }}>
+                  {'>'} {formatDateTime(selectedSlot.datetime)}
                 </div>
-              </Card.Body>
-            </Card>
-
-            <Form onSubmit={handleScheduleMeeting}>
-              <Form.Group className="mb-3">
-                <Form.Label>Full Name *</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleFormChange}
-                  required
-                  placeholder="Your full name"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Email Address *</Form.Label>
-                <Form.Control
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleFormChange}
-                  required
-                  placeholder="your.email@example.com"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Additional Message (Optional)</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  name="message"
-                  value={formData.message}
-                  onChange={handleFormChange}
-                  placeholder="Any specific topics you'd like to discuss..."
-                />
-              </Form.Group>
-
-              <div className="d-flex justify-content-between">
-                <Button 
-                  variant="outline-secondary" 
-                  onClick={() => setCurrentStep('slots')}
-                >
-                  Back
-                </Button>
-                <Button 
-                  variant="primary" 
-                  type="submit" 
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Spinner size="sm" className="me-2" />
-                      Scheduling...
-                    </>
-                  ) : (
-                    <>
-                      <FaCheck className="me-2" />
-                      Schedule Meeting
-                    </>
-                  )}
-                </Button>
               </div>
-            </Form>
-          </div>
-        )}
 
-        {/* Step 4: Confirmation */}
-        {currentStep === 'confirmation' && scheduledMeeting && (
-          <div className="text-center">
-            <div className="mb-4">
-              <FaCheck className="text-success" size={48} />
+              <form onSubmit={handleScheduleMeeting}>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ color: DIM, fontSize: '11px', marginBottom: '6px', display: 'block', fontFamily: MONO }}>
+                    {'>'} name:
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    required
+                    placeholder="your name"
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ color: DIM, fontSize: '11px', marginBottom: '6px', display: 'block', fontFamily: MONO }}>
+                    {'>'} email:
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleFormChange}
+                    required
+                    placeholder="you@example.com"
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ color: DIM, fontSize: '11px', marginBottom: '6px', display: 'block', fontFamily: MONO }}>
+                    {'>'} notes: (optional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    name="message"
+                    value={formData.message}
+                    onChange={handleFormChange}
+                    placeholder="topics you'd like to cover..."
+                    style={{ ...inputStyle, resize: 'vertical' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    style={buttonStyle}
+                    onMouseEnter={(e) => buttonHover(e, true)}
+                    onMouseLeave={(e) => buttonHover(e, false)}
+                    onClick={() => setCurrentStep('slots')}
+                  >
+                    {'<'}- back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={scheduling}
+                    style={{ ...buttonStyle, opacity: scheduling ? 0.6 : 1, cursor: scheduling ? 'not-allowed' : 'pointer' }}
+                    onMouseEnter={(e) => buttonHover(e, true)}
+                    onMouseLeave={(e) => buttonHover(e, false)}
+                  >
+                    {scheduling ? (
+                      <>
+                        <span className="chat-loading-dot" /> scheduling...
+                      </>
+                    ) : (
+                      <>
+                        <FaCheck style={{ fontSize: '12px' }} /> {'>>'} confirm booking
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
-            
-            <h4 className="text-success mb-3">Meeting Scheduled Successfully!</h4>
-            
-            <Card className="mb-3">
-              <Card.Body>
-                <div className="row">
-                  <div className="col-sm-6">
-                    <strong>Meeting ID:</strong><br />
-                    <code>{scheduledMeeting.meetingId}</code>
-                  </div>
-                  <div className="col-sm-6">
-                    <strong>Scheduled Time:</strong><br />
-                    {formatDateTime(scheduledMeeting.scheduledTime)}
-                  </div>
+          )}
+
+          {/* Step: confirmation */}
+          {currentStep === 'confirmation' && scheduledMeeting && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: GREEN, fontSize: '28px' }}>
+                <FaCheck />
+              </div>
+              <h4 style={{ color: GREEN, fontSize: '14px', margin: '12px 0 16px 0', fontFamily: MONO }}>
+                {'>'} meeting.scheduled()
+              </h4>
+
+              <div style={{
+                background: 'rgba(0,255,65,0.04)',
+                border: `1px solid ${BORDER_DIM}`,
+                borderRadius: '4px',
+                padding: '12px',
+                textAlign: 'left',
+                marginBottom: '12px',
+                fontFamily: MONO
+              }}>
+                <div style={{ fontSize: '11px', marginBottom: '4px' }}>
+                  <span style={{ color: FAINT }}>id:</span> <span style={{ color: DIM }}>{scheduledMeeting.meetingId}</span>
+                </div>
+                <div style={{ fontSize: '11px', marginBottom: '4px' }}>
+                  <span style={{ color: FAINT }}>time:</span> <span style={{ color: DIM }}>{formatDateTime(scheduledMeeting.scheduledTime)}</span>
                 </div>
                 {scheduledMeeting.meetingLink && (
-                  <div className="mt-3">
-                    <strong>Meeting Link:</strong><br />
-                    <a href={scheduledMeeting.meetingLink} target="_blank" rel="noreferrer">
+                  <div style={{ fontSize: '11px' }}>
+                    <span style={{ color: FAINT }}>link:</span>{' '}
+                    <a
+                      href={scheduledMeeting.meetingLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: GREEN, wordBreak: 'break-all' }}
+                    >
                       {scheduledMeeting.meetingLink}
                     </a>
                   </div>
                 )}
-              </Card.Body>
-            </Card>
+              </div>
 
-            <Alert variant="info">
-              📧 You'll receive a confirmation email with meeting details and calendar invite shortly.
-            </Alert>
+              <p style={{ color: DIM, fontSize: '11px', margin: '0 0 14px 0', fontFamily: MONO }}>
+                {'>'} confirmation email on its way
+              </p>
 
-            <Button variant="primary" onClick={handleClose} className="me-2">
-              Done
-            </Button>
-            <Button variant="outline-secondary" onClick={resetWidget}>
-              Schedule Another
-            </Button>
-          </div>
-        )}
-      </Modal.Body>
-    </Modal>
-  );
-};
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                <button style={buttonStyle} onMouseEnter={(e) => buttonHover(e, true)} onMouseLeave={(e) => buttonHover(e, false)} onClick={handleClose}>
+                  done
+                </button>
+                <button
+                  style={{ ...buttonStyle, color: DIM, borderColor: BORDER_DIM }}
+                  onMouseEnter={(e) => buttonHover(e, true)}
+                  onMouseLeave={(e) => buttonHover(e, false)}
+                  onClick={resetWidget}
+                >
+                  schedule another
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
-export default SchedulingWidget; 
+export default SchedulingWidget
