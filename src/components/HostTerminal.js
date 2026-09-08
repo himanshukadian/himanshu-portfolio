@@ -212,10 +212,18 @@ function HostTerminal({ siteIframeRef }) {
   const inputRef = useRef(null);
   const bodyRef = useRef(null);
   const writingCacheRef = useRef(null);
+  const writingCacheAtRef = useRef(0);
+  const WRITING_CACHE_TTL = 60 * 1000;
   const haloHistoryRef = useRef([]);
 
   const fetchWriting = useCallback(async () => {
-    if (writingCacheRef.current && writingCacheRef.current.length) return writingCacheRef.current;
+    if (
+      writingCacheRef.current &&
+      writingCacheRef.current.length &&
+      Date.now() - writingCacheAtRef.current < WRITING_CACHE_TTL
+    ) {
+      return writingCacheRef.current;
+    }
     const res = await fetch(ARTICLES_ENDPOINT);
     if (!res.ok) throw new Error(`API ${res.status}`);
     const body = await res.json();
@@ -229,6 +237,7 @@ function HostTerminal({ siteIframeRef }) {
         : 0
     );
     writingCacheRef.current = articles;
+    writingCacheAtRef.current = Date.now();
     return articles;
   }, []);
 
@@ -585,7 +594,10 @@ function HostTerminal({ siteIframeRef }) {
             push("use 'writing <n>' to open an article, e.g. 'writing 1'", "dim");
           };
           const runWriting = async () => {
-            if (wArg === "refresh") writingCacheRef.current = null;
+            if (wArg === "refresh") {
+              writingCacheRef.current = null;
+              writingCacheAtRef.current = 0;
+            }
             const cached = writingCacheRef.current && writingCacheRef.current.length;
             if (!cached) push("fetching articles…", "sec");
             let articles;
