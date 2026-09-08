@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FaCalendarAlt, FaCheck, FaEnvelope, FaClock } from 'react-icons/fa'
+import { FaCalendarAlt, FaCheck, FaEnvelope } from 'react-icons/fa'
 
 const MONO = "'Fira Code', monospace"
 const GREEN = '#00ff41'
@@ -416,10 +416,10 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
           {currentStep === 'confirmation' && scheduledMeeting && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ color: scheduledMeeting.strategy === 'calendly' ? GREEN : '#ffb020', fontSize: '28px' }}>
-                {scheduledMeeting.strategy === 'calendly' ? <FaCheck /> : <FaClock />}
+                {scheduledMeeting.strategy === 'calendly' ? <FaCheck /> : <FaCalendarAlt />}
               </div>
               <h4 style={{ color: scheduledMeeting.strategy === 'calendly' ? GREEN : '#ffb020', fontSize: '14px', margin: '12px 0 16px 0', fontFamily: MONO }}>
-                {'>'} {scheduledMeeting.strategy === 'calendly' ? 'meeting.scheduled()' : 'booking.requested()'}
+                {'>'} {scheduledMeeting.strategy === 'calendly' ? 'meeting.scheduled()' : 'book.now()'}
               </h4>
 
               <div style={{
@@ -431,35 +431,37 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                 marginBottom: '12px',
                 fontFamily: MONO
               }}>
-                <div style={{ fontSize: '11px', marginBottom: '4px' }}>
-                  <span style={{ color: FAINT }}>id:</span> <span style={{ color: DIM }}>{scheduledMeeting.meetingId || 'pending'}</span>
-                </div>
+                {scheduledMeeting.strategy === 'calendly' && (
+                  <div style={{ fontSize: '11px', marginBottom: '4px' }}>
+                    <span style={{ color: FAINT }}>id:</span> <span style={{ color: DIM }}>{scheduledMeeting.meetingId || 'pending'}</span>
+                  </div>
+                )}
                 <div style={{ fontSize: '11px', marginBottom: '4px' }}>
                   <span style={{ color: FAINT }}>time:</span> <span style={{ color: DIM }}>{formatDateTime(scheduledMeeting.scheduledTime)}</span>
                 </div>
-                {scheduledMeeting.strategy === 'calendly' && scheduledMeeting.meetingLink && (
+                {scheduledMeeting.meetingLink && (
                   <div style={{ fontSize: '11px' }}>
-                    <span style={{ color: FAINT }}>link:</span>{' '}
+                    <span style={{ color: FAINT }}>{scheduledMeeting.strategy === 'calendly' ? 'link:' : 'open:'}</span>{' '}
                     <a
                       href={scheduledMeeting.meetingLink}
                       target="_blank"
                       rel="noreferrer"
                       style={{ color: GREEN, wordBreak: 'break-all' }}
                     >
-                      {scheduledMeeting.meetingLink}
+                      {scheduledMeeting.strategy === 'calendly' ? scheduledMeeting.meetingLink : 'calendly.com/himanshu-c-official/30min'}
                     </a>
                   </div>
                 )}
                 {scheduledMeeting.strategy !== 'calendly' && (
                   <div style={{ fontSize: '11px', marginTop: '4px' }}>
                     <span style={{ color: FAINT }}>status:</span>{' '}
-                    <span style={{ color: '#ffb020' }}>pending confirmation — real link will follow by email</span>
+                    <span style={{ color: '#ffb020' }}>Calendly busy — pick your slot at the link above</span>
                   </div>
                 )}
               </div>
 
               <p style={{ color: DIM, fontSize: '11px', margin: '0 0 14px 0', fontFamily: MONO }}>
-                {'>'} {scheduledMeeting.strategy === 'calendly' ? 'confirmation email on its way' : 'request received — I\'ll confirm shortly'}
+                {'>'} {scheduledMeeting.strategy === 'calendly' ? 'confirmation email on its way' : 'direct booking — confirmation arrives by email'}
               </p>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>

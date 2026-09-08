@@ -291,9 +291,10 @@ const ChatWidget = () => {
 
   const handleMeetingScheduled = useCallback((meetingData) => {
     const isReal = meetingData && meetingData.strategy === 'calendly'
+    const link = meetingData && meetingData.meetingLink
     const content = isReal
-      ? `📅 **Meeting scheduled!** ${meetingData.meetingId} — ${new Date(meetingData.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${meetingData.meetingLink ? `\n\n🔗 ${meetingData.meetingLink}` : ''}`
-      : `📅 **Booking request received!** (pending confirmation) — ${new Date(meetingData && meetingData.scheduledTime ? meetingData.scheduledTime : Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}.\n\nI'll confirm your slot by email shortly.`
+      ? `📅 **Meeting scheduled!** ${meetingData.meetingId} — ${new Date(meetingData.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${link ? `\n\n🔗 ${link}` : ''}`
+      : `📅 **Book your slot directly!** Calendly is busy right now — pick your time here: ${link || 'https://calendly.com/himanshu-c-official/30min'}\n\nConfirmation arrives by email.`
     const summary = {
       id: makeMessageId(),
       type: 'assistant',
