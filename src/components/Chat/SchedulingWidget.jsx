@@ -377,7 +377,7 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                 </div>
               </div>
 
-              <form onSubmit={handleScheduleMeeting}>
+              <form onSubmit={handleScheduleMeeting} encType="application/x-www-form-urlencoded">
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ color: DIM, fontSize: '11px', marginBottom: '6px', display: 'block', fontFamily: MONO }}>
                     {'>'} name:

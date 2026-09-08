@@ -156,7 +156,7 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
 
   return (
     <div style={{ position: 'relative' }}>
-      <form onSubmit={handleSubmit} style={{
+      <form onSubmit={handleSubmit} encType="application/x-www-form-urlencoded" style={{
         display: 'flex',
         alignItems: 'flex-end',
         gap: '8px'
