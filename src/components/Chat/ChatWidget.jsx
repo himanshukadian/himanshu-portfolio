@@ -49,9 +49,6 @@ const ChatWidget = () => {
   const [expandedSection, setExpandedSection] = useState(null)
   const [error, setError] = useState(null)
   const [aiOnline, setAiOnline] = useState(() => aiService.getOnline())
-  const [showScheduling, setShowScheduling] = useState(false)
-  const [meetingSuggestion, setMeetingSuggestion] = useState(null)
-  const [popupQuestion, setPopupQuestion] = useState(null)
   const messagesEndRef = useRef(null)
 
   const getColors = () => {
@@ -254,14 +251,24 @@ const ChatWidget = () => {
     settle()
 
     if (meetingIntent) {
-      setMeetingSuggestion({
-        meetingType: 'general',
-        duration: 30,
-        description: 'General intro call — career, collaboration, or tech talk',
-        agenda: ['Introduction', 'Discussion', 'Next steps'],
-        autoMessage: 'Pick a time that works for you; you\'ll get a confirmation email.'
-      })
-      setShowScheduling(true)
+      commitMessages([...messagesRef.current, {
+        id: makeMessageId(),
+        type: 'question',
+        question: {
+          prompt: 'Pick a topic so I can set up the call:',
+          label: 'meeting.purpose()',
+          options: [
+            { label: 'Career opportunities', value: 'Career opportunities' },
+            { label: 'Tech / AI discussion', value: 'Tech / AI discussion' },
+            { label: 'Collaboration project', value: 'Collaboration project' },
+            { label: 'Just a quick chat', value: 'Just a quick chat' }
+          ]
+        },
+        meta: { kind: 'meeting-purpose' },
+        answered: false,
+        answer: '',
+        timestamp: new Date()
+      }])
     }
   }, [commitMessages])
 
@@ -310,31 +317,54 @@ const ChatWidget = () => {
     commitMessages([...messagesRef.current, summary])
   }, [commitMessages])
 
-  const handleQuestionAnswer = useCallback((value) => {
-    setPopupQuestion(null)
-    setShowScheduling(false)
-    aiService.resolveAsk(value)
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: makeMessageId(),
-        type: 'user',
-        content: String(value),
-        timestamp: new Date()
+  const appendQuestion = useCallback((questionSpec) => {
+    const q = questionSpec && questionSpec.question ? questionSpec.question : questionSpec
+    setShowWelcome(false)
+    commitMessages([...messagesRef.current, {
+      id: makeMessageId(),
+      type: 'question',
+      question: {
+        prompt: q.prompt,
+        options: q.options,
+        label: q.label
       },
-      {
-        id: makeMessageId(),
-        type: 'assistant',
-        content: `> input.recorded() — thanks, noted: **${value}**`,
-        streaming: false,
-        sources: [],
-        suggestions: [],
-        model: 'local',
-        contextUsed: false,
-        timestamp: new Date()
-      }
-    ])
-  }, [])
+      answered: false,
+      answer: '',
+      timestamp: new Date()
+    }])
+  }, [commitMessages])
+
+  const startMeetingScheduler = useCallback((purpose) => {
+    commitMessages([...messagesRef.current, {
+      id: makeMessageId(),
+      type: 'scheduler',
+      meetingSuggestion: {
+        meetingType: 'general',
+        duration: 30,
+        description: purpose || 'General intro call — career, collaboration, or tech talk',
+        agenda: ['Introduction', purpose || 'General discussion', 'Next steps'],
+        autoMessage: 'Pick a time that works for you; you\'ll get a confirmation email.'
+      },
+      timestamp: new Date()
+    }])
+  }, [commitMessages])
+
+  const handleQuestionAnswer = useCallback((question, value, messageId, meta) => {
+    commitMessages(messagesRef.current.map((m) =>
+      m.id === messageId ? { ...m, answered: true, answer: String(value) } : m
+    ))
+    commitMessages([...messagesRef.current, {
+      id: makeMessageId(),
+      type: 'user',
+      content: String(value),
+      timestamp: new Date()
+    }])
+    if (meta && meta.kind === 'meeting-purpose') {
+      startMeetingScheduler(String(value))
+    } else {
+      aiService.resolveAsk(value)
+    }
+  }, [commitMessages, startMeetingScheduler])
 
   const handleOpen = useCallback(() => {
     setIsOpen(true)
@@ -342,11 +372,9 @@ const ChatWidget = () => {
   }, [])
 
   const askPopupQuestion = useCallback((question) => {
-    const q = question && question.question ? question.question : question
     setIsOpen(true)
-    setPopupQuestion({ prompt: q.prompt, options: q.options, label: q.label })
-    setShowScheduling(true)
-  }, [])
+    appendQuestion(question)
+  }, [appendQuestion])
 
   useEffect(() => {
     window.__haloAsk = askPopupQuestion
@@ -469,16 +497,6 @@ const ChatWidget = () => {
           }} />
         </button>
       </div>
-<SchedulingWidget
-        aiService={aiService}
-        show={showScheduling}
-        onHide={() => { setShowScheduling(false); setPopupQuestion(null) }}
-        meetingSuggestion={meetingSuggestion}
-        onMeetingScheduled={handleMeetingScheduled}
-        mode={popupQuestion ? 'question' : 'schedule'}
-        question={popupQuestion}
-        onAnswer={handleQuestionAnswer}
-      />
       </>
     )
   }
@@ -827,16 +845,43 @@ const ChatWidget = () => {
               minHeight: 0
             }}
           >
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                colors={colors}
-                instantMode
-                onSuggestionClick={handleQuickAction}
-                suggestionsDisabled={isLoading}
-              />
-            ))}
+            {messages.map((message) => {
+              if (message.type === 'question') {
+                return (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    colors={colors}
+                    instantMode
+                    onQuestionAnswer={handleQuestionAnswer}
+                  />
+                )
+              }
+              if (message.type === 'scheduler') {
+                return (
+                  <SchedulingWidget
+                    key={message.id}
+                    inline
+                    aiService={aiService}
+                    show
+                    onHide={() => commitMessages(messagesRef.current.filter((m) => m.id !== message.id))}
+                    meetingSuggestion={message.meetingSuggestion}
+                    onMeetingScheduled={handleMeetingScheduled}
+                    mode="schedule"
+                  />
+                )
+              }
+              return (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  colors={colors}
+                  instantMode
+                  onSuggestionClick={handleQuickAction}
+                  suggestionsDisabled={isLoading}
+                />
+              )
+            })}
             {isLoading && !streamingActive && (
               <div style={{
                 display: 'flex',
@@ -878,18 +923,8 @@ const ChatWidget = () => {
 <MessageInput onSendMessage={handleSendMessage} disabled={isLoading} colors={colors} />
         </div>
       </div>
-      </div>
-<SchedulingWidget
-        aiService={aiService}
-        show={showScheduling}
-        onHide={() => { setShowScheduling(false); setPopupQuestion(null) }}
-        meetingSuggestion={meetingSuggestion}
-        onMeetingScheduled={handleMeetingScheduled}
-        mode={popupQuestion ? 'question' : 'schedule'}
-        question={popupQuestion}
-        onAnswer={handleQuestionAnswer}
-      />
-</>
+    </div>
+    </>
     )
 }
  

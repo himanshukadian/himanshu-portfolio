@@ -371,21 +371,7 @@ class AIService {
     try {
       devLog('📅 Processing meeting request with AI')
 
-      const purpose = await this.ask({
-        prompt: 'What would you like to discuss? Pick a topic or describe it briefly.',
-        label: 'meeting.purpose()',
-        options: [
-          { label: 'Career opportunities', value: 'Career opportunities' },
-          { label: 'Tech / AI discussion', value: 'Tech / AI discussion' },
-          { label: 'Collaboration project', value: 'Collaboration project' },
-          { label: 'Just a quick chat', value: 'Just a quick chat' }
-        ]
-      }).catch(() => '')
-
       let query = userQuery
-      if (purpose) {
-        query += `\n\nMeeting purpose: ${purpose}`
-      }
 
       try {
         const slotPromise = this.getAvailableSlots('general')
@@ -396,7 +382,7 @@ class AIService {
             .slice(0, 5)
             .map((slot, index) => `${index + 1}. ${slot.display} (${slot.timezone || 'IST'})`)
             .join('\n')
-          query = `Himanshu's REAL currently available meeting slots (${slotsData.availableSlots[0].timezone || 'IST'}):\n${slotLines}\n\nMeeting purpose: ${purpose || userQuery}\n\nWhen discussing availability, follow these rules strictly:\n- ONLY recommend times from the exact list above. Never invent slots, weekday patterns, or "typical availability".\n- If the user wants to book, give them this exact link: https://calendly.com/himanshu-c-official/30min\n- Do not mention any timezone, location, or availability that is not in the list above.\n\nUser: ${userQuery}`
+          query = `Himanshu's REAL currently available meeting slots (${slotsData.availableSlots[0].timezone || 'IST'}):\n${slotLines}\n\nMeeting purpose: ${userQuery}\n\nWhen discussing availability, follow these rules strictly:\n- ONLY recommend times from the exact list above. Never invent slots, weekday patterns, or "typical availability".\n- If the user wants to book, give them this exact link: https://calendly.com/himanshu-c-official/30min\n- Do not mention any timezone, location, or availability that is not in the list above.\n\nUser: ${userQuery}`
           devLog(`📅 Injected ${slotsData.availableSlots.length} real Calendly slots into meeting query`)
         }
       } catch (slotError) {

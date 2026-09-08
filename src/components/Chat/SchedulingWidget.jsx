@@ -51,7 +51,7 @@ const inputStyle = {
   transition: 'all 0.2s ease'
 }
 
-const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, onMeetingScheduled, mode = 'schedule', question = null, onAnswer = null }) => {
+const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, onMeetingScheduled, mode = 'schedule', question = null, onAnswer = null, inline = false }) => {
   const [currentStep, setCurrentStep] = useState(mode === 'question' ? 'question' : 'slots')
   const [availableSlots, setAvailableSlots] = useState([])
   const [selectedSlot, setSelectedSlot] = useState(null)
@@ -187,37 +187,21 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
 
   if (!show) return null
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.78)',
-        backdropFilter: 'blur(2px)',
-        zIndex: 10020,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) handleClose()
-      }}
-    >
-      <div
-        style={{
-          width: 'min(480px, 100%)',
-          maxHeight: '620px',
-          background: '#000000',
-          borderRadius: '4px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,255,65,0.15)',
-          border: `1px solid ${BORDER}`,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          fontFamily: MONO
-        }}
-      >
+  const cardStyle = {
+    width: inline ? '100%' : 'min(480px, 100%)',
+    maxHeight: inline ? '360px' : '620px',
+    background: '#000000',
+    borderRadius: '4px',
+    boxShadow: inline ? 'none' : '0 10px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,255,65,0.15)',
+    border: `1px solid ${inline ? BORDER_DIM : BORDER}`,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    fontFamily: MONO
+  }
+
+  const cardContent = (
+    <div style={cardStyle}>
         {/* header */}
         <div
           style={{
@@ -534,8 +518,40 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
           )}
         </div>
       </div>
-    </div>
-  )
+    )
+
+    if (inline) {
+      return (
+        <div style={{
+          width: '100%',
+          marginBottom: '14px',
+          fontFamily: MONO
+        }}>
+          {cardContent}
+        </div>
+      )
+    }
+
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.78)',
+          backdropFilter: 'blur(2px)',
+          zIndex: 10020,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) handleClose()
+        }}
+      >
+{cardContent}
+      </div>
+    )
 }
 
 export default SchedulingWidget

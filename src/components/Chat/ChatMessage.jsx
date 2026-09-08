@@ -34,7 +34,7 @@ const truncate = (text, max) => {
   return value.length > max ? `${value.slice(0, max)}…` : value
 }
 
-const ChatMessage = ({ message, colors, instantMode = false, onSuggestionClick, suggestionsDisabled = false }) => {
+const ChatMessage = ({ message, colors, instantMode = false, onSuggestionClick, suggestionsDisabled = false, onQuestionAnswer = null }) => {
   const [displayedText, setDisplayedText] = useState('')
   const [isTyping, setIsTyping] = useState(true)
   const messageRef = useRef(null)
@@ -147,8 +147,89 @@ const ChatMessage = ({ message, colors, instantMode = false, onSuggestionClick, 
   }
 
   const isUser = message.type === 'user'
+  const isQuestion = message.type === 'question' && message.question
   const hasSuggestions = !isUser && Array.isArray(message.suggestions) && message.suggestions.length > 0 && !message.streaming
   const hasSources = !isUser && Array.isArray(message.sources) && message.sources.length > 0
+
+  if (isQuestion) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-start',
+          marginBottom: '14px',
+          animation: 'fadeIn 0.3s ease-out'
+        }}
+      >
+        <div style={{ maxWidth: '88%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+          <div style={{ fontSize: '10px', color: FAINT, fontFamily: MONO, letterSpacing: '0.06em' }}>
+            ai@hc
+          </div>
+          <div style={{
+            background: 'rgba(0,255,65,0.02)',
+            color: safeColors.textPrimary,
+            padding: '12px 14px',
+            borderRadius: '4px',
+            border: `1px solid ${BORDER}`,
+            position: 'relative',
+            wordWrap: 'break-word',
+            fontFamily: MONO,
+            textAlign: 'left',
+            width: '100%'
+          }}>
+            <div style={{ fontSize: '12px', color: GREEN, margin: '0 0 12px 0', fontFamily: MONO, lineHeight: 1.5 }}>
+              {'>'} {message.question.label ? `${message.question.label} ` : ''}{message.question.prompt}
+            </div>
+            {message.question.options && message.question.options.map((opt, i) => (
+              <button
+                key={i}
+                disabled={message.answered}
+                onClick={() => onQuestionAnswer && onQuestionAnswer(message.question, opt.value, message.id, message.meta)}
+                style={{
+                  background: 'rgba(0,255,65,0.03)',
+                  border: `1px solid ${BORDER_DIM}`,
+                  borderRadius: '4px',
+                  color: message.answered ? DIM : GREEN,
+                  cursor: message.answered ? 'not-allowed' : 'pointer',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '8px 12px',
+                  marginBottom: '6px',
+                  fontSize: '12px',
+                  fontFamily: MONO,
+                  fontWeight: 400,
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  opacity: message.answered ? 0.4 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!message.answered) {
+                    e.currentTarget.style.borderColor = GREEN
+                    e.currentTarget.style.background = 'rgba(0,255,65,0.08)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = BORDER_DIM
+                  e.currentTarget.style.background = 'rgba(0,255,65,0.03)'
+                }}
+              >
+                <span style={{ color: FAINT, fontSize: '11px', flexShrink: 0 }}>[{String.fromCharCode(65 + i)}]</span>
+                <span>{opt.label}</span>
+              </button>
+            ))}
+            {message.answered && (
+              <div style={{ color: GREEN, fontSize: '11px', margin: '10px 0 0 0', fontFamily: MONO }}>
+                {'>'} received: <span style={{ color: '#ffffff' }}>{message.answer}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
