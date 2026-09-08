@@ -73,7 +73,7 @@ function Writing() {
     <Container fluid className="writing-section" id="writing">
       <Container className="writing-container">
         <h2 className="writing-heading">
-          <span className="writing-heading-prompt">{">"}</span> writing
+          <span className="writing-heading-prompt">{">"}</span> writings
         </h2>
         <div className="section-divider-center" aria-hidden="true" />
 
@@ -147,7 +147,7 @@ function Writing() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            All writing →
+            All writings →
           </a>
         </div>
       </Container>
