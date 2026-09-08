@@ -117,18 +117,6 @@
   font-size: 0.75rem;
 }
 
-/* — Card excerpt — */
-.writing-card-excerpt {
-  font-family: "Fira Code", monospace;
-  font-size: 0.8rem;
-  color: var(--blog-text-dim);
-  line-height: 1.5;
-  margin-top: 8px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-
 /* — Card tags — */
 .writing-card-tags {
   display: flex;

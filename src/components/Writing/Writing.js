@@ -89,9 +89,6 @@ function Writing() {
         {status === "ready" && (
           <div className="writing-list" role="list" aria-labelledby="writing-heading">
             {articles.map((article) => {
-              const excerpt = toPlainText(article.excerpt || article.description || "");
-              const shortExcerpt =
-                excerpt.length > 180 ? excerpt.slice(0, 180).trimEnd() + "…" : excerpt;
               const rawTags = Array.isArray(article.tags) ? article.tags.slice(0, 3) : [];
               const tags = rawTags.map((t) =>
                 (typeof t === "string" ? t : t && (t.name || t.title || t.slug)) || ""
@@ -118,7 +115,6 @@ function Writing() {
                     <span className="writing-card-separator">·</span>
                     <span className="writing-card-reading-time">{readingTime}</span>
                   </div>
-                  {shortExcerpt && <p className="writing-card-excerpt">{shortExcerpt}</p>}
                   {tags.length > 0 && (
                     <div className="writing-card-tags">
                       {tags.map((tag) => (
