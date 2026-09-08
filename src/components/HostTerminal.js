@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { resumeData } from "../data/resume";
+import { aiService } from "../utils/aiService";
+import resumeService from "../utils/resumeService";
 // Mirrors the on-disk "Himanshu Chaudhary Resume.pdf" (buildwithhimanshu.com).
 const VFS = (() => {
   const exp = resumeData.experience || [];
@@ -42,12 +44,17 @@ const ALL_CMDS = [...BUILTINS];
 
 const BACKEND =
   process.env.REACT_APP_BACKEND_URL || "https://himanshu-portfolio-api-e10b4543a453.herokuapp.com";
+const HALO_STREAM_ENDPOINT = BACKEND + "/api/ai/stream";
 const HALO_AI_ENDPOINT = BACKEND + "/api/ai/chat";
 const ARTICLES_ENDPOINT = BACKEND + "/api/articles";
 const REDUCED_MOTION =
   typeof window !== "undefined" &&
   !!window.matchMedia &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const HALO_HISTORY_KEY = "haloTerminal_chatHistory";
+const MEETING_SLOTS_ENDPOINT = BACKEND + "/api/scheduling/slots";
+const MEETING_SCHEDULE_ENDPOINT = BACKEND + "/api/scheduling/schedule";
 
 const RESUME_PDF =
   (typeof window !== "undefined" ? window.location.origin : "") + "/Himanshu_Chaudhary_Resume.pdf";
@@ -153,9 +160,28 @@ const HALO_INTRO = [
   "•  Technical skills",
   "•  Architecture",
   "•  Career",
+  "•  Schedule a meeting  (try 'schedule a meeting')",
+  "•  Customize your resume  (try 'customize my resume')",
   "",
   "Press ESC or type 'exit' to leave the agent.",
 ];
+
+function parseSSELine(rawLine) {
+  if (!rawLine.startsWith("data:")) return null;
+  const payload = rawLine.replace(/^data:\s*/, "").trim();
+  if (!payload) return null;
+  try {
+    return JSON.parse(payload);
+  } catch (e) {
+    return null;
+  }
+}
+
+const letterIndex = (v) => {
+  const l = String(v || "").trim().toLowerCase();
+  if (/^[a-h]$/.test(l)) return l.charCodeAt(0) - 97;
+  return -1;
+};
 
 function resolveFile(segs) {
   const exact = nodeAt(segs);
@@ -209,6 +235,21 @@ function HostTerminal({ siteIframeRef }) {
   const [haloMode, setHaloMode] = useState(false);
   const [haloBusy, setHaloBusy] = useState(false);
   const [haloLog, setHaloLog] = useState([]);
+  const [askMode, setAskMode] = useState(null);
+  const [activeAsk, setActiveAsk] = useState(null);
+  const [slotMode, setSlotMode] = useState(false);
+  const [slotList, setSlotList] = useState([]);
+  const [slotLoading, setSlotLoading] = useState(false);
+  const [schedulingMsg, setSchedulingMsg] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [streamingLine, setStreamingLine] = useState(null);
+  const haloBusyRef = useRef(false);
+  const askModeRef = useRef(null);
+  const streamingLineRef = useRef(null);
+  const awaitingJDPasteRef = useRef(false);
+  const meetingPurposeRef = useRef("");
+  const meetingSlotRef = useRef(null);
+  const pendingMeetingRef = useRef(null);
   const inputRef = useRef(null);
   const bodyRef = useRef(null);
   const writingCacheRef = useRef(null);
@@ -255,24 +296,319 @@ function HostTerminal({ siteIframeRef }) {
   }, [push]);
 
   // ---- HALO agent ----
-  const logHalo = useCallback((line) => {
-    setHaloLog((prev) => [...prev, line]);
+  const persistHaloHistory = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(HALO_HISTORY_KEY, JSON.stringify(haloHistoryRef.current.slice(-20)));
+    } catch (e) {
+      /* ignore */
+    }
   }, []);
 
-  const startHalo = useCallback(() => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.sessionStorage.getItem(HALO_HISTORY_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) haloHistoryRef.current = parsed.slice(-20);
+      }
+    } catch (e) {
+      /* ignore corrupt storage */
+    }
+  }, []);
+
+const resetActiveState = useCallback(() => {
+    setAskMode(null);
+    setActiveAsk(null);
+    setSlotMode(false);
+    setSlotList([]);
+    setSlotLoading(false);
+    setSchedulingMsg("");
+    setSuggestions([]);
+    setStreamingLine(null);
+    awaitingJDPasteRef.current = false;
+    askModeRef.current = null;
+    streamingLineRef.current = null;
+    meetingPurposeRef.current = "";
+    meetingSlotRef.current = null;
+  }, []);
+
+const startHalo = useCallback(() => {
     push("halo@portfolio:~$ halo", "cmd");
     HALO_INTRO.forEach((t) => push(t, t === "HALO" ? "suc" : t.startsWith("•") ? "sec" : t.includes("─") ? "dim" : t.includes("Press") ? "dim" : t === "" || t === "You can ask me about:" ? "" : "sec"));
+    haloHistoryRef.current = (() => {
+      if (typeof window === "undefined") return [];
+      try {
+        const saved = window.sessionStorage.getItem(HALO_HISTORY_KEY);
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed.slice(-20) : [];
+      } catch (e) {
+        return [];
+      }
+    })();
     setHaloMode(true);
     setHaloBusy(false);
     setHaloLog([]);
-  }, [push]);
+    resetActiveState();
+  }, [push, resetActiveState]);
 
   const exitHalo = useCallback(() => {
     setHaloMode(false);
     setHaloBusy(false);
     setHaloLog([]);
+    haloBusyRef.current = false;
+    resetActiveState();
     push("exited HALO. type 'halo' to return.", "dim");
+  }, [push, resetActiveState]);
+
+  const showAsk = useCallback(
+    (prompt, options, label = "", kind = "generic") => {
+      askModeRef.current = kind;
+      setAskMode(kind);
+      setActiveAsk({ prompt, options, label });
+      push(`\n❔ ${label ? label + " — " : ""}${prompt}`, "suc");
+      options.forEach((opt, i) => {
+        push(`  [${String.fromCharCode(65 + i)}] ${opt.label}`, "sec");
+      });
+      push("type A/B/C/D … to choose", "dim");
+    },
+    [push]
+  );
+
+  const showSuggestionsRow = useCallback(
+    (sugs) => {
+      if (!Array.isArray(sugs) || sugs.length === 0) return;
+      setSuggestions(sugs);
+      push("\n● try:", "dim");
+      sugs.slice(0, 5).forEach((s, i) => push(`  [${i + 1}] ${s}`, "sec"));
+      push("type the number to run it", "dim");
+    },
+    [push]
+  );
+
+  const loadSlots = useCallback(async () => {
+    setSlotLoading(true);
+    setSlotList([]);
+    setSlotMode(true);
+    setSchedulingMsg("");
+    push("ℹ️ fetching real availability…", "dim");
+    try {
+      const res = await fetch(`${MEETING_SLOTS_ENDPOINT}?meetingType=general`);
+      if (!res.ok) throw new Error(`slots ${res.status}`);
+      const data = await res.json();
+      const slots = data?.data?.availableSlots || [];
+      if (!Array.isArray(slots) || slots.length === 0) {
+        push("⚠️ no open slots right now — use the Calendly link instead:", "err");
+        push("   https://calendly.com/himanshu-c-official/30min", "suc");
+        setSlotMode(false);
+        return;
+      }
+      setSlotList(slots);
+      push("pick a free slot — type its number:", "suc");
+      slots.slice(0, 8).forEach((s, i) => {
+        push(`  [${i + 1}] ${s.display} (${s.timezone || "IST"})`, "sec");
+      });
+      push("any other text → cancel", "dim");
+    } catch (err) {
+      push("⚠️ couldn't load slots — book directly:", "err");
+      push("   https://calendly.com/himanshu-c-official/30min", "suc");
+      setSlotMode(false);
+    } finally {
+      setSlotLoading(false);
+    }
   }, [push]);
+
+  const handleResumeCustomize = useCallback(
+    async (jobDescription) => {
+      setHaloBusy(true);
+      haloBusyRef.current = true;
+      setHaloLog(["customizing resume — this takes a few seconds…"]);
+      try {
+        const result = await resumeService.customizeAndGeneratePDF({
+          jobDescription: jobDescription,
+          companyName: "",
+          jobTitle: "",
+        });
+        const atsScore = result.customization?.data?.atsScore;
+        const matchPercentage = result.customization?.data?.matchPercentage;
+        const fileSize = result.pdf?.data?.fileSize;
+        const sizeLabel = typeof fileSize === "number" ? ` (${(fileSize / 1024).toFixed(1)}KB)` : "";
+        const downloadUrl = result.downloadUrl || "";
+        setHaloLog([]);
+        setHaloBusy(false);
+        haloBusyRef.current = false;
+        push("✓ AI Resume Customization Complete!", "suc");
+        push("");
+        push(`ATS Score: ${atsScore ?? "N/A"}%`, "sec");
+        push(`Match Percentage: ${matchPercentage ?? "N/A"}%`, "sec");
+        if (downloadUrl) {
+          push(`Download: ${downloadUrl}${sizeLabel}`, "suc");
+          push("click the link (or open in a new tab) to save the PDF.", "dim");
+        } else {
+          push("Download link unavailable — try again in a moment.", "err");
+        }
+        push("Optimized: content analysis, skill highlighting, ATS-compatible formatting.", "dim");
+        showSuggestionsRow(["customize my resume", "schedule a meeting", "show me all your projects"]);
+      } catch (error) {
+        setHaloLog([]);
+        setHaloBusy(false);
+        haloBusyRef.current = false;
+        push(`❌ resume customization failed: ${error && error.message ? error.message : "try again later"}`, "err");
+        showSuggestionsRow(["customize my resume"]);
+      }
+    },
+    [push, showSuggestionsRow]
+  );
+
+  const handleMeetingPurpose = useCallback(
+    (value) => {
+      meetingPurposeRef.current = String(value);
+      setAskMode(null);
+      setActiveAsk(null);
+      askModeRef.current = null;
+      push(`✓ purpose: ${value}`, "suc");
+      setSlotMode(true);
+      loadSlots();
+    },
+    [push, loadSlots]
+  );
+
+  const handleScheduleSlot = useCallback(
+    async (value) => {
+      const v = String(value || "").trim();
+      const idx = parseInt(v, 10) - 1;
+      if (!/^\d+$/.test(v) || idx < 0 || idx >= Math.min(slotList.length, 8)) {
+        setSlotMode(false);
+        setSlotList([]);
+        setSchedulingMsg("");
+        meetingPurposeRef.current = "";
+        push("cancelled.", "dim");
+        showSuggestionsRow(["schedule a meeting", "show me all your projects", "customize my resume"]);
+        return;
+      }
+      const slot = slotList[idx];
+      meetingSlotRef.current = slot;
+      push(`✓ selected: ${slot.display} (${slot.timezone || "IST"})`, "suc");
+      setSlotMode(false);
+      setSlotList([]);
+      setSchedulingMsg("details");
+      push("\nℹ️ booking through Calendly — reply with your name and email, e.g.:", "sec");
+      push("   Priya Kumar priya@example.com", "sec");
+      push("   (email optional — confirmation will still arrive)", "dim");
+    },
+    [push, slotList, showSuggestionsRow]
+  );
+
+  const bookMeeting = useCallback(
+    async (line) => {
+      const lineStr = String(line || "").trim();
+      const emailMatch = lineStr.match(/^(.*?)\s+([^\s@]+@[^\s@]+)\s*$/);
+      const name = emailMatch ? emailMatch[1].trim().replace(/\s{2,}/g, " ") : lineStr.replace(/\s{2,}/g, " ");
+      const email = (emailMatch ? emailMatch[2] : "").replace(/<|>|,/g, "");
+      if (!name) {
+        push("⚠️ please provide at least your name, e.g. 'Priya Kumar'", "err");
+        return;
+      }
+      if (!email) {
+        pendingMeetingRef.current = { name };
+        setSchedulingMsg("email");
+        push(`✓ name: ${name}`, "suc");
+        push("📧 email is required for the Calendly confirmation — type your email address:", "sec");
+        return;
+      }
+      finishMeetingBooking(name, email);
+    },
+    [push, finishMeetingBooking]
+  );
+
+  const finishMeetingBooking = useCallback(
+    async (name, email) => {
+      const slot = meetingSlotRef.current;
+      if (!slot) {
+        push("⚠️ something went wrong — no slot selected. try again.", "err");
+        setSchedulingMsg("");
+        return;
+      }
+      setSchedulingMsg("");
+      push(`✓ name: ${name} — email: ${email}`, "suc");
+      setHaloBusy(true);
+      haloBusyRef.current = true;
+      setHaloLog(["booking meeting…"]);
+      try {
+        const res = await fetch(MEETING_SCHEDULE_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            message: "",
+            selectedSlot: slot.datetime,
+            meetingType: "general",
+            duration: 30,
+            agenda: [meetingPurposeRef.current || "General intro call", "Introduction", "Next steps"],
+          }),
+        });
+        if (res.status === 429) {
+          push("💨 rate limited — wait a moment and try again", "err");
+          return;
+        }
+        if (!res.ok) {
+          let msg = "";
+          try {
+            const body = await res.json();
+            if (body && body.message) msg = body.message;
+          } catch (e) {
+            /* noop */
+          }
+          throw new Error(msg || `schedule ${res.status}`);
+        }
+        const data = await res.json();
+        const m = data?.data || {};
+        const isCalendly = m.strategy === "calendly";
+        push("");
+        push(isCalendly ? "✓ Meeting scheduled!" : "✓ Book your slot directly!", "suc");
+        if (m.scheduledTime) push(`  time: ${new Date(m.scheduledTime).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`, "sec");
+        if (m.meetingLink) push(`  link: ${m.meetingLink}`, "suc");
+        if (m.meetingId) push(`  id: ${m.meetingId}`, "dim");
+        if (!isCalendly) push(`  open: ${m.meetingLink || "https://calendly.com/himanshu-c-official/30min"}`, "suc");
+        push("  confirmation email on its way.", "dim");
+      } catch (err) {
+        push(`❌ scheduling failed: ${err && err.message ? err.message : "try again later"}`, "err");
+        push("  book directly here → https://calendly.com/himanshu-c-official/30min", "suc");
+      } finally {
+        setHaloBusy(false);
+        haloBusyRef.current = false;
+        setHaloLog([]);
+        setSchedulingMsg("");
+        setSlotMode(false);
+        setSlotList([]);
+        meetingPurposeRef.current = "";
+        meetingSlotRef.current = null;
+        pendingMeetingRef.current = null;
+        showSuggestionsRow(["schedule a meeting", "show me all your projects", "customize my resume"]);
+      }
+    },
+    [push, showSuggestionsRow]
+  );
+
+  const handleResumeTarget = useCallback(
+    (value) => {
+      setAskMode(null);
+      setActiveAsk(null);
+      setSuggestions([]);
+      const v = String(value);
+      if (v === "Paste job description") {
+        awaitingJDPasteRef.current = true;
+        push("📋 Great — paste the full job description as your next message and I'll tailor your resume with AI.", "suc");
+        push("  (anything long — I'll detect it automatically)", "dim");
+        return;
+      }
+      handleResumeCustomize(v);
+    },
+    [push, handleResumeCustomize]
+  );
 
   const askHalo = useCallback(
     async (query) => {
@@ -312,13 +648,20 @@ function HostTerminal({ siteIframeRef }) {
       }
 
       setHaloBusy(true);
-      setHaloLog(["searching portfolio…"]);
+      haloBusyRef.current = true;
+      setHaloLog(["connecting…"]);
+
+      let result = null;
+      let partialStream = "";
+
       try {
-        const res = await fetch(HALO_AI_ENDPOINT, {
+        setHaloLog(["streaming…"]);
+        const res = await fetch(HALO_STREAM_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query, chatHistory: haloHistoryRef.current }),
         });
+
         if (res.status === 429) {
           setHaloLog([]);
           push("💨 rate limited — wait a moment and try again", "err");
@@ -328,46 +671,189 @@ function HostTerminal({ siteIframeRef }) {
           let msg = "";
           try {
             const body = await res.json();
-            if (body && body.status === "error" && typeof body.message === "string") {
-              msg = body.message;
-            }
+            if (body && body.status === "error" && typeof body.message === "string") msg = body.message;
           } catch (e) {
-            msg = "";
+            /* noop */
           }
-          setHaloLog([]);
-          push(msg || "⚠️ Halo couldn't reach the assistant service — try again in a moment.", "err");
-          return;
+          throw new Error(msg || `stream ${res.status}`);
         }
-        const data = await res.json();
-        const text = data.data?.response || data.response || "";
-        if (!text) {
-          setHaloLog([]);
-          push("⚠️ Halo returned an empty response — try again.", "err");
-          return;
+        if (!res.body) throw new Error("no stream");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let accumulated = "";
+        partialStream = "";
+        let sources = [];
+        let model = "";
+        let streamFailed = "";
+        let gotText = false;
+
+        streamingLineRef.current = "";
+        setStreamingLine("");
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let nl;
+          while ((nl = buffer.indexOf("\n")) !== -1) {
+            const rawLine = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            const event = parseSSELine(rawLine);
+            if (event && event.type === "delta") {
+              accumulated += typeof event.text === "string" ? event.text : "";
+              gotText = true;
+              streamingLineRef.current = accumulated;
+              setStreamingLine(accumulated);
+            } else if (event && event.type === "start") {
+              model = typeof event.model === "string" ? event.model : "";
+              sources = Array.isArray(event.sources) ? event.sources : [];
+            } else if (event && event.type === "done") {
+              if (Array.isArray(event.sources) && event.sources.length) sources = event.sources;
+              if (typeof event.model === "string" && event.model) model = event.model;
+            } else if (event && event.type === "error") {
+              streamFailed = typeof event.message === "string" && event.message ? event.message : "stream error";
+              break;
+            }
+          }
+          if (streamFailed) break;
         }
+        partialStream = accumulated;
+        if (streamFailed) throw new Error(streamFailed);
+        if (!gotText || !accumulated.trim()) throw new Error("empty stream");
+
         setHaloLog([]);
-        push("", "");
-        pushBlock(text, "sec");
-        const sources = data?.data?.writingSources || [];
-        if (sources.length > 0) {
+        // commit the streamed text as terminal lines
+        const finalText = accumulated;
+        streamingLineRef.current = null;
+        setStreamingLine(null);
+        push("");
+        pushBlock(finalText, "sec");
+        if (sources.length) {
           push("sources:", "sec");
           sources.forEach((s) => {
             push(`  ▸ ${s.title}`, "suc");
             push(`    ${s.url}`, "dim");
           });
         }
+
+        result = { text: finalText, sources, model };
+
         const h = haloHistoryRef.current;
         h.push({ type: "user", content: query });
-        h.push({ type: "assistant", content: text });
+        h.push({ type: "assistant", content: finalText });
         haloHistoryRef.current = h.slice(-20);
+        persistHaloHistory();
       } catch (err) {
         setHaloLog([]);
-        push("⚠️ Halo couldn't reach the assistant service — try again in a moment.", "err");
+        streamingLineRef.current = null;
+        setStreamingLine(null);
+        if (partialStream && partialStream.trim()) {
+          push("");
+          pushBlock(partialStream, "sec");
+          push("⚠️ connection dropped mid-response — retrying…", "dim");
+        } else {
+          push("⚠️ Halo stream failed, falling back…", "dim");
+        }
+        try {
+          const res = await fetch(HALO_AI_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query, chatHistory: haloHistoryRef.current }),
+          });
+          if (res.status === 429) {
+            push("💨 rate limited — wait a moment and try again", "err");
+            return;
+          }
+          if (!res.ok) {
+            let msg = "";
+            try {
+              const body = await res.json();
+              if (body && body.status === "error" && typeof body.message === "string") msg = body.message;
+            } catch (e) {
+              /* noop */
+            }
+            throw new Error(msg || `api ${res.status}`);
+          }
+          const data = await res.json();
+          const text = data.data?.response || data.response || "";
+          if (!text) throw new Error("empty api");
+          push("");
+          pushBlock(text, "sec");
+          const sources = data?.data?.writingSources || [];
+          if (sources.length) {
+            push("sources:", "sec");
+            sources.forEach((s) => {
+              push(`  ▸ ${s.title}`, "suc");
+              push(`    ${s.url}`, "dim");
+            });
+          }
+          result = { text, sources, model: data?.data?.model || "" };
+          const h = haloHistoryRef.current;
+          h.push({ type: "user", content: query });
+          h.push({ type: "assistant", content: text });
+          haloHistoryRef.current = h.slice(-20);
+          persistHaloHistory();
+        } catch (err2) {
+          push("⚠️ Halo couldn't reach the assistant service — here's what I know locally:", "err");
+          const local = aiService.getOfflineFallback();
+          push("");
+          pushBlock(local.text, "sec");
+          result = { text: local.text, sources: [], model: "local-fallback" };
+          const h = haloHistoryRef.current;
+          h.push({ type: "user", content: query });
+          h.push({ type: "assistant", content: local.text });
+          haloHistoryRef.current = h.slice(-20);
+          persistHaloHistory();
+        }
       } finally {
+        haloBusyRef.current = false;
         setHaloBusy(false);
+        setHaloLog([]);
+      }
+
+      if (!result) return;
+
+      // ---- post-answer intents ----
+      setSuggestions([]);
+      const intent = aiService.categorizeQuery(query);
+
+      if (intent.category === "meeting_scheduling") {
+        showAsk(
+          "Pick a purpose so I can line up a call:",
+          [
+            { label: "Career opportunities", value: "Career opportunities" },
+            { label: "Tech / AI discussion", value: "Tech / AI discussion" },
+            { label: "Collaboration project", value: "Collaboration project" },
+            { label: "Just a quick chat", value: "Just a quick chat" },
+          ],
+          "meeting.purpose()",
+          "meeting-purpose"
+        );
+      } else if (intent.category === "resume_customization") {
+        if (query.length > 50) {
+          await handleResumeCustomize(query);
+        } else {
+          showAsk(
+            "Which role should I tailor your resume for? Paste the job description or pick a focus.",
+            [
+              { label: "Paste job description", value: "Paste job description" },
+              { label: "Software Engineer / Full-stack", value: "Software Engineer / Full-stack" },
+              { label: "AI / ML Engineer", value: "AI / ML Engineer" },
+              { label: "Cloud / DevOps", value: "Cloud / DevOps" },
+            ],
+            "resume.target()",
+            "resume-target"
+          );
+        }
+      } else {
+        const suggestions = aiService.getSuggestions(intent.category, query);
+        showSuggestionsRow(suggestions);
       }
     },
-    [push, pushBlock, fetchWriting]
+    [push, pushBlock, fetchWriting, showAsk, showSuggestionsRow, persistHaloHistory, handleResumeCustomize]
   );
 
   const sendHalo = useCallback(
@@ -375,31 +861,101 @@ function HostTerminal({ siteIframeRef }) {
       const q = String(v || "").trim();
       if (!q) return;
       push(`${haloPrompt} ${q}`, "cmd");
+
+      // cancel/reset
       if (/^(exit|quit|back)$/i.test(q)) {
         exitHalo();
         return;
       }
       if (/^(reset)$/i.test(q)) {
         haloHistoryRef.current = [];
+        resetActiveState();
+        persistHaloHistory();
         push("halo conversation cleared", "suc");
         return;
       }
+
+      // resume customization: we're waiting for a JD paste
+      if (awaitingJDPasteRef.current) {
+        awaitingJDPasteRef.current = false;
+        handleResumeCustomize(q);
+        return;
+      }
+
+      // meeting scheduling: awaiting name/email details
+      if (schedulingMsg === "details") {
+        bookMeeting(q);
+        return;
+      }
+
+      // meeting scheduling: await email (name already collected)
+      if (schedulingMsg === "email") {
+        const email = String(q).trim().replace(/<|>|,/g, "");
+        if (!email || !/@/.test(email)) {
+          push("⚠️ that doesn't look like an email — try again:", "err");
+          return;
+        }
+        const name = (pendingMeetingRef.current && pendingMeetingRef.current.name) || "";
+        pendingMeetingRef.current = null;
+        finishMeetingBooking(name, email);
+        return;
+      }
+
+      // meeting scheduling: awaiting slot number
+      if (slotMode && slotList.length) {
+        handleScheduleSlot(q);
+        return;
+      }
+
+      // answer to an active question
+      if (askMode && askModeRef.current) {
+        const kind = askModeRef.current;
+        const opt = activeAsk && activeAsk.options ? activeAsk.options[letterIndex(q)] : null;
+        if (opt) {
+          if (kind === "meeting-purpose") handleMeetingPurpose(opt.value);
+          else if (kind === "resume-target") handleResumeTarget(opt.value);
+          return;
+        }
+        if (kind === "resume-target" && q.length > 50) {
+          setAskMode(null);
+          setActiveAsk(null);
+          askModeRef.current = null;
+          handleResumeCustomize(q);
+          return;
+        }
+        push("invalid choice — type [A]/[B]/[C]/[D] from the options above.", "err");
+        return;
+      }
+
+      // suggestion selection
+      if (/^\d+$/.test(q) && suggestions.length) {
+        const idx = parseInt(q, 10) - 1;
+        if (idx >= 0 && idx < suggestions.length) {
+          const follow = suggestions[idx];
+          setSuggestions([]);
+          askHalo(follow);
+          return;
+        }
+      }
+
       askHalo(q);
     },
-    [haloPrompt, push, exitHalo, askHalo]
+    [haloPrompt, push, exitHalo, askHalo, resetActiveState, persistHaloHistory, awaitingJDPasteRef, handleResumeCustomize, handleScheduleSlot, bookMeeting, finishMeetingBooking, askMode, activeAsk, handleMeetingPurpose, handleResumeTarget, suggestions, schedulingMsg, slotMode, slotList]
   );
 
   const close = useCallback(() => {
     setHaloMode(false);
     setHaloBusy(false);
+    haloBusyRef.current = false;
     setHaloLog([]);
+    resetActiveState();
     setOpen(false);
     setValue("");
     setHistIndex(-1);
     if (siteIframeRef && siteIframeRef.current && siteIframeRef.current.contentWindow) {
       siteIframeRef.current.contentWindow.focus();
     }
-  }, [siteIframeRef]);
+  }, [siteIframeRef, resetActiveState]);
 
   const printHelp = useCallback(() => {
     push("Available commands:", "suc");
@@ -466,6 +1022,8 @@ function HostTerminal({ siteIframeRef }) {
         case "clear":
           setLines([{ text: haloMode ? haloPrompt : promptStr, cls: "cmd" }]);
           setShowIntro(false);
+          setStreamingLine(null);
+          streamingLineRef.current = null;
           if (haloMode) setHaloLog([]);
           return;
         case "halo":
@@ -672,6 +1230,8 @@ function HostTerminal({ siteIframeRef }) {
       e.preventDefault();
       setLines([{ text: haloMode ? haloPrompt : promptStr, cls: "cmd" }]);
       setShowIntro(false);
+      setStreamingLine(null);
+      streamingLineRef.current = null;
       if (haloMode) setHaloLog([]);
       return;
     }
@@ -762,7 +1322,7 @@ function HostTerminal({ siteIframeRef }) {
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [lines, typed, haloLog, haloBusy]);
+  }, [lines, typed, haloLog, haloBusy, streamingLine, suggestions]);
 
   if (!open) return null;
 
@@ -816,6 +1376,24 @@ function HostTerminal({ siteIframeRef }) {
                 </div>
               ))
             ))}
+        {streamingLine && (
+          <div className="k9s-term-line k9s-term-halo sec">
+            {streamingLine}
+            <span className="k9s-term-cursor" />
+          </div>
+        )}
+        {askMode && activeAsk && (
+          <div className="k9s-term-line k9s-term-question">
+            <span className="k9s-term-halo-spinner">❔</span>
+            {activeAsk.prompt}
+          </div>
+        )}
+        {slotMode && slotLoading && (
+          <div className="k9s-term-line k9s-term-halo">
+            <span className="k9s-term-halo-spinner">●</span>
+            loading calendar…
+          </div>
+        )}
         </div>
 
         {matches.length > 0 && !haloMode && (
@@ -838,14 +1416,38 @@ function HostTerminal({ siteIframeRef }) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onInputKey}
-            placeholder={haloMode ? (haloBusy ? "HALO is thinking…" : "ask HALO about Himanshu…") : "type a command…"}
+            placeholder={
+              !haloMode
+                ? "type a command…"
+                : haloBusy
+                ? "HALO is thinking…"
+                : slotMode
+                ? "type a slot number…"
+                : schedulingMsg === "details"
+                ? "type your name and email…"
+                : askMode
+                ? "type A/B/C/D…"
+                : "ask HALO about Himanshu…"
+            }
             spellCheck={false}
             autoComplete="off"
             disabled={haloBusy}
             aria-label={haloMode ? "HALO question input" : "Command input"}
           />
           <span className="k9s-palette-hints">
-            {haloMode ? "enter to ask · exit to leave" : "TAB complete · ↑↓ history · ESC quit"}
+            {!haloMode
+              ? "TAB complete · ↑↓ history · ESC quit"
+              : haloBusy
+              ? "streaming response…"
+              : slotMode
+              ? "type slot number · any text cancels"
+              : schedulingMsg === "details"
+              ? "name + email · enter to book"
+              : askMode
+              ? "reply with a letter · exit cancels"
+              : suggestions.length
+              ? "type 1-5 or ask freely"
+              : "enter to ask · exit to leave"}
           </span>
         </div>
       </div>
