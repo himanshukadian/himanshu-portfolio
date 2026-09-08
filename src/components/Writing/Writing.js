@@ -74,21 +74,26 @@ function Writing() {
         {status === "ready" && (
           <div className="writing-list" role="list" aria-labelledby="writing-heading">
             {articles.map((article) => {
-              const excerpt = article.description || article.excerpt || "";
-              const tags = Array.isArray(article.tags) ? article.tags.slice(0, 3) : [];
+              const excerpt = String(article.description || article.excerpt || "");
+              const rawTags = Array.isArray(article.tags) ? article.tags.slice(0, 3) : [];
+              const tags = rawTags.map((t) =>
+                (typeof t === "string" ? t : t && (t.name || t.title || t.slug)) || ""
+              ).filter(Boolean);
               const date = fullDateFormatter.format(new Date(article.publishedAt));
               const readingTime = estimateReadingTime(article);
+              const title = String(article.title || article.slug || "");
+              const slug = String(article.slug || "");
 
               return (
-                <article className="writing-card" key={article.slug || article.title} role="listitem">
+                <article className="writing-card" key={slug || title} role="listitem">
                   <div className="writing-card-header">
                     <a
                       className="writing-card-title"
-                      href={`https://blog.buildwithhimanshu.com/${article.slug}`}
+                      href={`https://blog.buildwithhimanshu.com/${slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {article.title || article.slug}
+                      {title}
                     </a>
                   </div>
                   <div className="writing-card-meta">
