@@ -52,6 +52,44 @@ const REDUCED_MOTION =
 const RESUME_PDF =
   (typeof window !== "undefined" ? window.location.origin : "") + "/Himanshu_Chaudhary_Resume.pdf";
 
+const inlineMdPattern =
+  /\*\*\[([^\]]+)\]\(([^)]+)\)\*\*|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+?)\*\*|`([^`]+?)`|\*([^*]+?)\*/g;
+
+const LINK_STYLE = { color: "#6C63FF", textDecoration: "underline", cursor: "pointer" };
+
+function renderInline(text) {
+  const nodes = [];
+  let last = 0;
+  let key = 0;
+  let m;
+  inlineMdPattern.lastIndex = 0;
+  while ((m = inlineMdPattern.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      nodes.push(
+        <a key={key++} href={m[2]} style={LINK_STYLE} onClick={(e) => { e.preventDefault(); window.open(m[2], "_blank", "noopener,noreferrer"); }}>
+          {m[1]}
+        </a>
+      );
+    } else if (m[3] !== undefined) {
+      nodes.push(
+        <a key={key++} href={m[4]} style={LINK_STYLE} onClick={(e) => { e.preventDefault(); window.open(m[4], "_blank", "noopener,noreferrer"); }}>
+          {m[3]}
+        </a>
+      );
+    } else if (m[5] !== undefined) {
+      nodes.push(<strong key={key++}>{m[5]}</strong>);
+    } else if (m[6] !== undefined) {
+      nodes.push(<code key={key++}>{m[6]}</code>);
+    } else if (m[7] !== undefined) {
+      nodes.push(<em key={key++}>{m[7]}</em>);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
 // ---- intro (typed on open) ----
 const WELCOME_CMD = { text: "himanshu@portfolio:~$ whoami", cls: "cmd" };
 
@@ -685,7 +723,7 @@ function HostTerminal({ siteIframeRef }) {
               ))}
           {lines.map((l, i) => (
             <div key={i} className={`k9s-term-line ${l.cls || ""}`}>
-              {l.text}
+              {renderInline(l.text)}
             </div>
           ))}
           {haloMode &&
