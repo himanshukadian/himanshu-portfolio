@@ -67,13 +67,13 @@ function renderInline(text) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     if (m[1] !== undefined) {
       nodes.push(
-        <a key={key++} href={m[2]} style={LINK_STYLE} onClick={(e) => { e.preventDefault(); window.open(m[2], "_blank", "noopener,noreferrer"); }}>
+        <a key={key++} href={m[2]} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
           {m[1]}
         </a>
       );
     } else if (m[3] !== undefined) {
       nodes.push(
-        <a key={key++} href={m[4]} style={LINK_STYLE} onClick={(e) => { e.preventDefault(); window.open(m[4], "_blank", "noopener,noreferrer"); }}>
+        <a key={key++} href={m[4]} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
           {m[3]}
         </a>
       );
