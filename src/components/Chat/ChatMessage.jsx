@@ -203,7 +203,8 @@ const ChatMessage = ({ message, colors, instantMode = false, onSuggestionClick, 
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  opacity: message.answered ? 0.4 : 1
+                  opacity: message.answered ? 0.4 : 1,
+                  overflow: 'hidden'
                 }}
                 onMouseEnter={(e) => {
                   if (!message.answered) {
@@ -217,7 +218,7 @@ const ChatMessage = ({ message, colors, instantMode = false, onSuggestionClick, 
                 }}
               >
                 <span style={{ color: FAINT, fontSize: '11px', flexShrink: 0 }}>[{String.fromCharCode(65 + i)}]</span>
-                <span>{opt.label}</span>
+                <span style={{ flex: '1 1 auto', minWidth: 0, wordWrap: 'break-word' }}>{opt.label}</span>
               </button>
             ))}
             {message.answered && (
@@ -393,7 +394,11 @@ const ChatMessage = ({ message, colors, instantMode = false, onSuggestionClick, 
                   alignItems: 'center',
                   gap: '6px',
                   fontFamily: MONO,
-                  opacity: suggestionsDisabled ? 0.45 : 1
+                  opacity: suggestionsDisabled ? 0.45 : 1,
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  wordWrap: 'break-word',
+                  overflow: 'hidden'
                 }}
                 onMouseEnter={(e) => {
                   if (!suggestionsDisabled) {

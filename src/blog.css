@@ -88,6 +88,8 @@
   color: var(--blog-text);
   text-decoration: none;
   transition: color 200ms ease-out, text-shadow 200ms ease-out;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .writing-card-title:hover {

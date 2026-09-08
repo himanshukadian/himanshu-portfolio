@@ -735,7 +735,7 @@ const ChatWidget = () => {
           borderBottom: '1px solid rgba(255,0,0,0.25)',
           fontFamily: MONO
         }}>
-          <span>{'>'} error: {error}</span>
+          <span style={{ flex: '1', minWidth: 0, wordWrap: 'break-word', marginRight: '8px' }}>{'>'} error: {error}</span>
           <button
             onClick={() => setError(null)}
             style={{
@@ -764,6 +764,7 @@ const ChatWidget = () => {
             flex: '1',
             padding: '18px 16px',
             overflowY: 'auto',
+            overflowX: 'hidden',
             background: '#000000',
             WebkitOverflowScrolling: 'touch'
           }}>
@@ -860,7 +861,7 @@ const ChatWidget = () => {
               }}>
                 {'//'} categories
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '6px' }}>
                 {portfolioSections.map((section, index) => (
                   <button
                     key={index}

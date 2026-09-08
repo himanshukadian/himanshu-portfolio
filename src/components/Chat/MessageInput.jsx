@@ -161,7 +161,7 @@ const MessageInput = ({ onSendMessage, disabled, colors }) => {
         alignItems: 'flex-end',
         gap: '8px'
       }}>
-        <div style={{ flex: '1', position: 'relative' }}>
+        <div style={{ flex: '1', position: 'relative', minWidth: 0 }}>
           <div style={{
             position: 'relative',
             border: `1px solid ${isRecording ? GREEN : BORDER_DIM}`,

@@ -243,7 +243,7 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
         </div>
 
         {/* body */}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '18px 16px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0, padding: '18px 16px' }}>
           {error && (
             <div style={{
               background: 'rgba(255,0,0,0.08)',
@@ -282,7 +282,8 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                   onMouseEnter={(e) => !answered && buttonHover(e, true)}
                   onMouseLeave={(e) => !answered && buttonHover(e, false)}
                 >
-                  <span style={{ color: FAINT, fontSize: '11px' }}>[{String.fromCharCode(65 + i)}]</span> {opt.label}
+                  <span style={{ color: FAINT, fontSize: '11px' }}>[{String.fromCharCode(65 + i)}]</span>
+                  <span style={{ flex: '1 1 auto', minWidth: 0, wordWrap: 'break-word' }}>{opt.label}</span>
                 </button>
               ))}
               {answered && (
@@ -311,7 +312,7 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                   </p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '8px' }}>
                   {availableSlots.slice(0, 8).map((slot, index) => (
                     <button
                       key={index}
@@ -325,7 +326,9 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         textAlign: 'center',
-                        fontFamily: MONO
+                        fontFamily: MONO,
+                        minWidth: 0,
+                        overflow: 'hidden'
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = GREEN
@@ -417,10 +420,11 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                   />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    style={buttonStyle}
+                    className="sched-action-btn"
+                    style={{ ...buttonStyle, flex: '1 1 auto', minWidth: 0 }}
                     onMouseEnter={(e) => buttonHover(e, true)}
                     onMouseLeave={(e) => buttonHover(e, false)}
                     onClick={() => setCurrentStep('slots')}
@@ -429,8 +433,9 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                   </button>
                   <button
                     type="submit"
+                    className="sched-action-btn"
                     disabled={scheduling}
-                    style={{ ...buttonStyle, opacity: scheduling ? 0.6 : 1, cursor: scheduling ? 'not-allowed' : 'pointer' }}
+                    style={{ ...buttonStyle, padding: '6px 14px', flex: '1 1 auto', minWidth: 0, opacity: scheduling ? 0.6 : 1, cursor: scheduling ? 'not-allowed' : 'pointer' }}
                     onMouseEnter={(e) => buttonHover(e, true)}
                     onMouseLeave={(e) => buttonHover(e, false)}
                   >
@@ -440,7 +445,7 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                       </>
                     ) : (
                       <>
-                        <FaCheck style={{ fontSize: '12px' }} /> {'>>'} confirm booking
+                        <FaCheck style={{ fontSize: '11px' }} /> {'>>'} confirm
                       </>
                     )}
                   </button>
@@ -501,12 +506,12 @@ const SchedulingWidget = ({ aiService, show, onHide, meetingSuggestion = null, o
                 {'>'} {scheduledMeeting.strategy === 'calendly' ? 'confirmation email on its way' : 'direct booking — confirmation arrives by email'}
               </p>
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                <button style={buttonStyle} onMouseEnter={(e) => buttonHover(e, true)} onMouseLeave={(e) => buttonHover(e, false)} onClick={handleClose}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button style={{ ...buttonStyle, flex: '1 1 auto', minWidth: 0 }} onMouseEnter={(e) => buttonHover(e, true)} onMouseLeave={(e) => buttonHover(e, false)} onClick={handleClose}>
                   done
                 </button>
                 <button
-                  style={{ ...buttonStyle, color: DIM, borderColor: BORDER_DIM }}
+                  style={{ ...buttonStyle, color: DIM, borderColor: BORDER_DIM, flex: '1 1 auto', minWidth: 0 }}
                   onMouseEnter={(e) => buttonHover(e, true)}
                   onMouseLeave={(e) => buttonHover(e, false)}
                   onClick={resetWidget}

@@ -3266,7 +3266,7 @@ section, .about-section, .project-section, .resume-section, .contact-section {
   align-items: center;
   height: 100vh;
   min-height: 50vh;
-  width: 100vw;
+  width: 100%;
   position: fixed;
   top: 0;
   left: 0;
@@ -3656,6 +3656,12 @@ section, .about-section, .project-section, .resume-section, .contact-section {
 
 .chat-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 255, 65, 0.5);
+}
+
+.sched-action-btn {
+  white-space: normal !important;
+  max-width: 100%;
+  word-wrap: break-word;
 }
 
 @keyframes chatPulse {
