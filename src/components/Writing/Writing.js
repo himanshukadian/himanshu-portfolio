@@ -5,7 +5,18 @@ const ARTICLES_URL =
   (process.env.REACT_APP_BACKEND_URL || "https://himanshu-portfolio-api-e10b4543a453.herokuapp.com") +
   "/api/articles";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" });
+const fullDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+function estimateReadingTime(article) {
+  const text = article.content || article.description || "";
+  const words = text.trim().split(/\s+/).length;
+  const minutes = Math.max(1, Math.round(words / 200));
+  return `${minutes} min read`;
+}
 
 function Writing() {
   const [articles, setArticles] = useState([]);
@@ -45,66 +56,82 @@ function Writing() {
 
   return (
     <Container fluid className="writing-section" id="writing">
-      <Container>
-        <h2
-          id="writing-heading"
-          style={{
-            fontSize: "clamp(1.4rem, 2.5vw, 1.8rem)",
-            fontWeight: 600,
-            textAlign: "center",
-            color: "#ffffff",
-            marginBottom: 0,
-            fontFamily: "'Fira Code', monospace",
-          }}
-        >
-          <span style={{ color: '#00ff41' }}>{'>'}</span> writing
+      <Container className="writing-container">
+        <h2 className="writing-heading">
+          <span className="writing-heading-prompt">{">"}</span> writing
         </h2>
-        <div className="section-divider-center" aria-hidden="true"></div>
+        <div className="section-divider-center" aria-hidden="true" />
 
         {status === "loading" && (
-          <p className="writing-status">
-            <span style={{ color: '#00ff41' }}>{'>'}</span> fetching articles…
-          </p>
+          <div className="writing-status">
+            <span className="writing-heading-prompt">{">"}</span> fetching articles
+            <span className="writing-loading-dots">
+              <span>.</span><span>.</span><span>.</span>
+            </span>
+          </div>
         )}
 
         {status === "ready" && (
           <div className="writing-list" role="list" aria-labelledby="writing-heading">
-            {articles.map((article) => (
-              <div className="writing-row" key={article.slug || article.title} role="listitem">
-                <a
-                  className="writing-title"
-                  href={`https://blog.buildwithhimanshu.com/${article.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {article.title || article.slug}
-                </a>
-                <span className="writing-date">{dateFormatter.format(new Date(article.publishedAt))}</span>
-              </div>
-            ))}
+            {articles.map((article) => {
+              const excerpt = article.description || article.excerpt || "";
+              const tags = Array.isArray(article.tags) ? article.tags.slice(0, 3) : [];
+              const date = fullDateFormatter.format(new Date(article.publishedAt));
+              const readingTime = estimateReadingTime(article);
+
+              return (
+                <article className="writing-card" key={article.slug || article.title} role="listitem">
+                  <div className="writing-card-header">
+                    <a
+                      className="writing-card-title"
+                      href={`https://blog.buildwithhimanshu.com/${article.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {article.title || article.slug}
+                    </a>
+                  </div>
+                  <div className="writing-card-meta">
+                    <span className="writing-card-date">{date}</span>
+                    <span className="writing-card-separator">·</span>
+                    <span className="writing-card-reading-time">{readingTime}</span>
+                  </div>
+                  {excerpt && <p className="writing-card-excerpt">{excerpt}</p>}
+                  {tags.length > 0 && (
+                    <div className="writing-card-tags">
+                      {tags.map((tag) => (
+                        <span className="writing-tag" key={tag}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
 
         {status === "empty" && (
-          <p className="writing-status">
-            <span style={{ color: '#00ff41' }}>{'>'}</span> the blog is unreachable right now.
-          </p>
+          <div className="writing-status writing-empty">
+            <span className="writing-heading-prompt">{">"}</span> no articles yet — check back soon.
+          </div>
         )}
 
         {status === "error" && (
-          <p className="writing-status">
-            <span style={{ color: '#00ff41' }}>{'>'}</span> the blog is unreachable right now.
-          </p>
+          <div className="writing-status">
+            <span className="writing-heading-prompt">{">"}</span> the blog is unreachable right now.
+          </div>
         )}
 
-        <a
-          className="writing-all"
-          href="https://blog.buildwithhimanshu.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          All writing →
-        </a>
+        <div className="writing-footer">
+          <a
+            className="writing-all-link"
+            href="https://blog.buildwithhimanshu.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            All writing →
+          </a>
+        </div>
       </Container>
     </Container>
   );

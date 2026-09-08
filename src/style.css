@@ -1,6 +1,19 @@
 /* Fira Code monospace font is loaded via <link> in public/index.html */
 
 html {
+  scroll-behavior: smooth;
+  overflow-x: hidden !important;
+  font-family: 'Fira Code', monospace;
+  --ai-bg-gradient: #000000;
+  --ai-card-bg: rgba(255, 255, 255, 0.03);
+  --ai-glass-bg: rgba(255, 255, 255, 0.05);
+  --ai-primary: #00ff41;
+  --ai-secondary: #000000;
+  --ai-accent: #00ff41;
+  --ai-text: #ffffff;
+  --ai-subtext: rgba(255, 255, 255, 0.7);
+  --ai-glow: 0 0 16px 2px rgba(0, 255, 65, 0.3), 0 0 32px 4px rgba(0, 255, 65, 0.15);
+}
 
 /* Offline indicator - terminal warn bar */
 .offline-indicator {
@@ -21,19 +34,6 @@ html {
 
 .offline-indicator-tag {
   color: #ffff00;
-}
-  --ai-bg-gradient: #000000;
-  --ai-card-bg: rgba(255, 255, 255, 0.03);
-  --ai-glass-bg: rgba(255, 255, 255, 0.05);
-  --ai-primary: #00ff41;
-  --ai-secondary: #000000;
-  --ai-accent: #00ff41;
-  --ai-text: #ffffff;
-  --ai-subtext: rgba(255, 255, 255, 0.7);
-  --ai-glow: 0 0 16px 2px rgba(0, 255, 65, 0.3), 0 0 32px 4px rgba(0, 255, 65, 0.15);
-  scroll-behavior: smooth;
-  overflow-x: hidden !important;
-  font-family: 'Fira Code', monospace;
 }
 
 :root {
@@ -116,10 +116,13 @@ html {
   --gradient-accent: linear-gradient(135deg, rgba(0, 255, 65, 0.2) 0%, rgba(0, 255, 65, 0.3) 100%);
 }
 
-/* Theme transition */
-* {
-  transition: background-color var(--transition-speed) ease,
-              color var(--transition-speed) ease;
+/* Theme transition - only on specific elements, not global * */
+body,
+.navbar,
+.card,
+.proj-card,
+.resume-content-item {
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body, #root, .App, .blog-container, .resume-section {
@@ -127,13 +130,24 @@ body, #root, .App, .blog-container, .resume-section {
   background-attachment: fixed !important;
   color: var(--text-primary) !important;
   transition: background 0.3s, color 0.3s;
-  font-family: 'Fira Code', monospace !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 body {
   overflow-x: hidden !important;
   max-width: 100% !important;
-  font-family: 'Fira Code', monospace !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+code, pre, .terminal, .mono,
+.navbar, .meyriva-brand, .modern-navbar,
+.writing-card-title, .writing-card-date, .writing-card-reading-time,
+.writing-tag, .writing-status, .writing-all-link,
+.typewriter, .chat-widget, .chat-scroll,
+.prompt, .output, .cmd {
+  font-family: 'Fira Code', monospace;
 }
 
 .purple {
@@ -637,7 +651,7 @@ button:focus {
     left: 1rem !important;
     right: 1rem !important;
     height: 2px !important;
-    background: #ffd700 !important;
+    background: var(--primary-color) !important;
     border-radius: 1px !important;
   }
   
@@ -746,7 +760,7 @@ button:focus {
   left: 1rem !important;
   right: 1rem !important;
   height: 2px !important;
-  background: #ffd700 !important;
+  background: var(--primary-color) !important;
   border-radius: 1px !important;
 }
 
@@ -965,7 +979,7 @@ button:focus {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: #68187a;
+  background: rgba(0, 255, 65, 0.12);
   transition: 0.5s;
   transform: scale(0.9);
   z-index: -1;
@@ -973,13 +987,13 @@ button:focus {
 
 .home-social-icons:hover::before {
   transform: scale(1.1);
-  box-shadow: 0 0 15px #801f95;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
 }
 
 .home-social-icons:hover {
-  color: #87209e;
-  box-shadow: 0 0 5px #87209e;
-  text-shadow: 0 0 2px #87209e;
+  color: var(--primary-color);
+  box-shadow: 0 0 5px var(--primary-color);
+  text-shadow: 0 0 2px var(--primary-color);
 }
 
 .social-icons {
@@ -990,7 +1004,7 @@ button:focus {
 }
 
 .icon-colour {
-  color: #700c86 !important;
+  color: var(--primary-color) !important;
 }
 
 /* --------- */
@@ -1135,7 +1149,7 @@ button:focus {
 }
 
 .blockquote-footer {
-  color: #a588c0 !important;
+  color: var(--text-muted) !important;
 }
 /* --------- */
 /* Projects */
@@ -1600,7 +1614,7 @@ section .resume-content-item:focus {
   margin: 15px !important;
   padding: 20px !important;
   opacity: 0.93 !important;
-  border: 1.7px solid rgba(200, 137, 230, 0.637) !important;
+  border: 1.7px solid rgba(0, 255, 65, 0.3) !important;
   vertical-align: middle !important;
   text-align: center !important;
   border-radius: 15px !important;
@@ -1608,7 +1622,7 @@ section .resume-content-item:focus {
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  box-shadow: 4px 5px 4px 3px rgba(89, 4, 168, 0.137) !important;
+  box-shadow: 4px 5px 4px 3px rgba(0, 0, 0, 0.25) !important;
   overflow: hidden !important;
   transition: all 0.4s ease 0s !important;
   background: var(--bg-primary) !important;
@@ -1624,7 +1638,7 @@ section .resume-content-item:focus {
 
 .tech-icons:hover {
   transform: translateY(-5px) scale(1.08) !important;
-  box-shadow: 0 8px 24px 0 rgba(255, 255, 255, 0.15), 4px 5px 4px 3px rgba(89, 4, 168, 0.25) !important;
+  box-shadow: 0 8px 24px 0 rgba(255, 255, 255, 0.15), 4px 5px 4px 3px rgba(0, 0, 0, 0.3) !important;
   border: 2px solid rgba(255, 255, 255, 0.4) !important;
   background: rgba(255, 255, 255, 0.08) !important;
 }
@@ -1700,14 +1714,15 @@ section .resume-content-item:focus {
   gap: 5px;
   padding: 0.5rem 1rem;
   font-size: 0.9em;
-  background-color: rgba(200, 137, 230, 0.2) !important;
-  border: 1px solid rgba(200, 137, 230, 0.4) !important;
-  color: white !important;
-  transition: all 0.3s ease !important;
+  background-color: rgba(0, 255, 65, 0.08) !important;
+  border: 1px solid rgba(0, 255, 65, 0.3) !important;
+  color: var(--primary-color) !important;
+  transition: background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease !important;
 }
 
 .project-buttons .btn:hover {
-  background-color: rgba(200, 137, 230, 0.4) !important;
+  background-color: rgba(0, 255, 65, 0.15) !important;
+  border-color: rgba(0, 255, 65, 0.5) !important;
   transform: translateY(-2px);
 }
 
@@ -1804,12 +1819,12 @@ section .resume-content-item:focus {
   margin: 15px !important;
   padding: 10px !important;
   opacity: 0.93 !important;
-  border: 1.7px solid rgba(200, 137, 230, 0.637) !important;
+  border: 1.7px solid rgba(0, 255, 65, 0.3) !important;
   vertical-align: middle !important;
   text-align: center !important;
   border-radius: 5px !important;
   display: table !important;
-  box-shadow: 4px 5px 4px 3px rgba(89, 4, 168, 0.137) !important;
+  box-shadow: 4px 5px 4px 3px rgba(0, 0, 0, 0.25) !important;
   overflow: hidden !important;
   transition: all 0.4s ease 0s !important;
   background: var(--card-bg) !important;
@@ -2009,14 +2024,14 @@ section .resume-content-item:focus {
 .resume .resume-item {
   padding: 0 0 10px 25px;
   margin-top: -2px;
-  border-left: 2px solid #8a49a8;
+  border-left: 2px solid var(--primary-color);
   position: relative;
 }
 
 .resume .resume-item .resume-title {
   line-height: 18px;
   font-size: 0.9em;
-  background: #5234795d;
+  background: rgba(0, 255, 65, 0.06);
   padding: 8px 15px;
   display: inline-block;
   font-weight: 600;
@@ -2046,7 +2061,7 @@ section .resume-content-item:focus {
   left: -9px;
   top: 0;
   background: #fff;
-  border: 2px solid #8a49a8;
+  border: 2px solid var(--primary-color);
 }
 
 .like-item {
@@ -2056,12 +2071,13 @@ section .resume-content-item:focus {
 }
 
 .like-btn {
-  background-color: #934cce5e !important;
-  border-color: #934cce5e !important;
+  background-color: rgba(0, 255, 65, 0.08) !important;
+  border-color: rgba(0, 255, 65, 0.35) !important;
+  color: var(--primary-color) !important;
   padding: 0.25rem 0.98rem !important;
   border-radius: 5px !important;
   line-height: 1.4 !important;
-  transition: 0.3s ease !important;
+  transition: background-color 0.2s ease, transform 0.2s ease !important;
 }
 
 .like-btn:hover {
@@ -2863,13 +2879,13 @@ li, ul {
 /* Section Headings */
 .section-title, .project-heading, .resume-main-title, .about-section h1 {
   font-family: 'Inter', 'Poppins', Arial, sans-serif !important;
-  font-size: 2.8rem !important;
-  font-weight: 900 !important;
+  font-size: clamp(2.2rem, 5vw, 3rem) !important;
+  font-weight: 700 !important;
   color: var(--text-primary) !important;
   margin-bottom: 2.8rem !important;
   margin-top: 2.8rem !important;
   text-align: center !important;
-  letter-spacing: 2px;
+  letter-spacing: -0.02em;
   position: relative;
 }
 
@@ -2971,13 +2987,13 @@ li, ul {
   box-shadow: 0 4px 24px 0 var(--card-shadow) !important;
   padding: 2rem !important;
   margin-bottom: 2rem !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out, border-color 0.25s ease-out;
   backdrop-filter: blur(10px);
 }
 .card:hover, .project-card-view:hover, .resume-content-item:hover, .tech-icons:hover, .about-card:hover, .contact-form-wrapper:hover {
   border-color: var(--primary-color) !important;
   box-shadow: 0 8px 40px 0 var(--card-shadow) !important;
-  transform: translateY(-4px) scale(1.02);
+  transform: translateY(-4px) !important;
 }
 
 /* Tech/Tool Icons */
@@ -3013,12 +3029,12 @@ li, ul {
   background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   font-weight: 500 !important;
   padding: 0.875rem 2rem !important;
   font-size: 0.95rem !important;
   letter-spacing: 0.5px !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: transform 0.22s ease-out, box-shadow 0.22s ease-out, background-color 0.22s ease-out, border-color 0.22s ease-out !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -3041,11 +3057,11 @@ li, ul {
   background: rgba(255, 255, 255, 0.15) !important;
   border-color: rgba(255, 255, 255, 0.3) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.25), 0 2px 6px 0 rgba(0, 0, 0, 0.2) !important;
-  transform: translateY(-2px) scale(1.02) !important;
+  transform: translateY(-2px) !important;
 }
 
 .btn:active, .btn-primary:active, .download-resume-btn:active, button[type="submit"]:active, button[type="button"]:not(.meyriva-slider-btn):not(.meyriva-slider-dot):not(.back-to-top-btn):not(.btn-close):not(.chat-mic-btn):active {
-  transform: translateY(0) !important;
+  transform: translateY(0) scale(0.98) !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.12) !important;
 }
 
@@ -4009,22 +4025,22 @@ section, .about-section, .project-section, .resume-section, .contact-section {
   flex-wrap: wrap;
 }
 
-/* Primary CTA — Accent green button */
+/* Primary CTA — solid terminal green */
 .btn-accent {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: transparent !important;
-  color: #00ff41 !important;
-  border: 1px solid #00ff41 !important;
+  background: var(--accent) !important;
+  color: #0a2218 !important;
+  border: 1px solid var(--accent) !important;
   border-radius: 4px !important;
-  font-weight: 400 !important;
+  font-weight: 600 !important;
   font-size: 0.85rem !important;
   padding: 0.7rem 1.5rem !important;
-  letter-spacing: 0.1em !important;
-  box-shadow: 0 0 12px rgba(0, 255, 65, 0.15) !important;
-  transition: all 0.25s ease !important;
+  letter-spacing: 0.08em !important;
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.2) !important;
+  transition: transform 0.22s ease-out, box-shadow 0.22s ease-out, background-color 0.22s ease-out !important;
   text-decoration: none !important;
   cursor: pointer !important;
   min-height: 44px !important;
@@ -4033,44 +4049,28 @@ section, .about-section, .project-section, .resume-section, .contact-section {
 }
 
 .btn-accent:hover {
-  background: rgba(0, 255, 65, 0.1) !important;
+  background: #00cc33 !important;
+  color: #0a2218 !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3) !important;
-  color: #00ff41 !important;
+  box-shadow: 0 0 24px rgba(0, 255, 65, 0.35) !important;
   text-decoration: none !important;
 }
 
-/* Ensure btn-accent overrides the generic button[type="submit"] rule */
-button.btn-accent,
-button.btn-accent[type="submit"] {
-  background: var(--accent) !important;
-  color: #0a2218 !important;
-  border: none !important;
-  box-shadow: 0 4px 18px var(--accent-glow) !important;
-}
-button.btn-accent:hover,
-button.btn-accent[type="submit"]:hover {
-  background: var(--accent-hover) !important;
-  color: #0a2218 !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 28px var(--accent-glow) !important;
-}
-
-/* Secondary CTA — Ghost/outline */
+/* Secondary CTA — ghost/outline */
 .btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   background: transparent !important;
-  color: rgba(255, 255, 255, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 4px !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   font-size: 0.85rem !important;
   padding: 0.7rem 1.5rem !important;
-  letter-spacing: 0.1em !important;
-  transition: all 0.25s ease !important;
+  letter-spacing: 0.08em !important;
+  transition: transform 0.22s ease-out, border-color 0.22s ease-out, color 0.22s ease-out, background-color 0.22s ease-out !important;
   text-decoration: none !important;
   cursor: pointer !important;
   min-height: 44px !important;
@@ -4406,7 +4406,7 @@ button.btn-accent[type="submit"]:hover {
   border: 1px solid rgba(0, 255, 65, 0.1);
   border-radius: 4px;
   padding: 1.5rem;
-  transition: all 0.3s ease;
+  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out, background-color 0.25s ease-out, border-color 0.25s ease-out;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
@@ -5785,78 +5785,39 @@ button.btn-accent[type="submit"]:hover {
 }
 
 /* ============================================ */
-/*  WRITING SECTION — TERMINAL ARTICLE LIST      */
+/*  WRITING SECTION — superseded by blog.css      */
+/*  (kept minimal for backwards-compat fallback) */
 /* ============================================ */
 
 .writing-section {
   background: transparent;
 }
 
-.writing-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  margin: 1.75rem 0 2rem;
-}
+/* ============================================ */
+/*  RESPECT REDUCED MOTION                       */
+/* ============================================ */
 
-.writing-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.writing-row:hover {
-  background: var(--card-bg) !important;
-  border-color: var(--card-border) !important;
-}
-
-.writing-title {
-  color: var(--text-primary) !important;
-  text-decoration: none;
-  font-family: 'Fira Code', monospace;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-  transition: color 0.2s ease, text-shadow 0.2s ease;
-}
-
-.writing-title:hover {
-  color: var(--primary-color) !important;
-  text-shadow: 0 0 8px var(--accent-glow);
-}
-
-.writing-date {
-  color: var(--text-muted) !important;
-  font-family: 'Fira Code', monospace;
-  font-size: 0.78rem;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.writing-status {
-  color: var(--text-muted) !important;
-  font-family: 'Fira Code', monospace;
-  font-size: 0.82rem;
-  margin: 1rem 0 1.5rem;
-}
-
-.writing-all {
-  display: inline-block;
-  color: var(--primary-color) !important;
-  text-decoration: none;
-  font-family: 'Fira Code', monospace;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-top: 1rem;
-  transition: color 0.2s ease, text-shadow 0.2s ease;
-}
-
-.writing-all:hover {
-  color: var(--primary-color) !important;
-  text-shadow: 0 0 8px var(--accent-glow);
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card:hover,
+  .project-card-view:hover,
+  .resume-content-item:hover,
+  .tech-icons:hover,
+  .about-card:hover,
+  .proj-card:hover,
+  .btn:hover,
+  .btn-primary:hover,
+  .btn-accent:hover,
+  .btn-ghost:hover {
+    transform: none !important;
+  }
 }

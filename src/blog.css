@@ -1,0 +1,251 @@
+/* ============================================================
+   Blog / Writing Section Styles
+   Terminal aesthetic · Fira Code · Green accent (#00ff41)
+   ============================================================ */
+
+/* — Blog-specific tokens — */
+:root {
+  --blog-bg: #0a0a0a;
+  --blog-card-bg: rgba(255, 255, 255, 0.02);
+  --blog-card-border: rgba(0, 255, 65, 0.1);
+  --blog-card-hover-border: rgba(0, 255, 65, 0.3);
+  --blog-text: #e5e7eb;
+  --blog-text-dim: rgba(255, 255, 255, 0.5);
+  --blog-accent: #00ff41;
+  --blog-accent-hover: #00cc33;
+  --blog-glow: 0 0 20px rgba(0, 255, 65, 0.15);
+}
+
+/* — Section layout — */
+.writing-section {
+  width: 100%;
+  padding: clamp(3rem, 6vw, 6rem) 1.5rem;
+  box-sizing: border-box;
+  background: var(--blog-bg);
+}
+
+.writing-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* — Section heading — */
+.writing-heading {
+  font-family: "Fira Code", monospace;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 600;
+  color: var(--blog-text);
+  margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.writing-heading::before {
+  content: "";
+}
+
+.writing-heading .writing-heading-prompt {
+  color: var(--blog-accent);
+}
+
+/* — Article card list — */
+.writing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* — Article card — */
+.writing-card {
+  display: block;
+  padding: 16px 20px;
+  border-radius: 6px;
+  background: var(--blog-card-bg);
+  border: 1px solid var(--blog-card-border);
+  border-left: 2px solid var(--blog-accent);
+  text-decoration: none;
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out;
+}
+
+.writing-card:hover {
+  border-color: var(--blog-card-hover-border);
+  box-shadow: var(--blog-glow);
+  transform: translateY(-1px);
+  will-change: transform;
+}
+
+/* — Card header row — */
+.writing-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* — Card title — */
+.writing-card-title {
+  font-family: "Fira Code", monospace;
+  font-size: clamp(0.85rem, 1.2vw, 1rem);
+  font-weight: 500;
+  color: var(--blog-text);
+  text-decoration: none;
+  transition: color 200ms ease-out, text-shadow 200ms ease-out;
+}
+
+.writing-card-title:hover {
+  color: var(--blog-accent);
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+}
+
+/* — Card meta row — */
+.writing-card-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.writing-card-date,
+.writing-card-reading-time {
+  font-family: "Fira Code", monospace;
+  font-size: 0.75rem;
+  color: var(--blog-text-dim);
+}
+
+.writing-card-separator {
+  color: var(--blog-text-dim);
+  font-size: 0.75rem;
+}
+
+/* — Card excerpt — */
+.writing-card-excerpt {
+  font-family: "Fira Code", monospace;
+  font-size: 0.8rem;
+  color: var(--blog-text-dim);
+  line-height: 1.5;
+  margin-top: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* — Card tags — */
+.writing-card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.writing-tag {
+  font-family: "Fira Code", monospace;
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 255, 65, 0.08);
+  color: var(--blog-accent);
+  border: 1px solid rgba(0, 255, 65, 0.15);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+/* — Status / loading — */
+.writing-status {
+  text-align: center;
+  font-family: "Fira Code", monospace;
+  font-size: 0.85rem;
+  color: var(--blog-text-dim);
+  padding: 2rem;
+}
+
+.writing-loading-dots span {
+  display: inline-block;
+  animation: writing-dot-pulse 1.4s infinite ease-in-out;
+}
+
+.writing-loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.writing-loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes writing-dot-pulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* — Footer link — */
+.writing-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.writing-all-link {
+  font-family: "Fira Code", monospace;
+  font-size: 0.85rem;
+  color: var(--blog-accent);
+  text-decoration: none;
+  transition: text-shadow 200ms ease-out;
+}
+
+.writing-all-link:hover {
+  text-shadow: 0 0 12px rgba(0, 255, 65, 0.4);
+}
+
+/* — Empty / error state — */
+.writing-empty {
+  text-align: center;
+  font-family: "Fira Code", monospace;
+  color: var(--blog-text-dim);
+  padding: 3rem 1rem;
+}
+
+/* — Responsive (≤640px) — */
+@media (max-width: 640px) {
+  .writing-section {
+    padding: clamp(2rem, 4vw, 3rem) 1rem;
+  }
+
+  .writing-card {
+    padding: 12px 14px;
+  }
+
+  .writing-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .writing-card-meta {
+    gap: 6px;
+  }
+}
+
+/* — Reduced motion — */
+@media (prefers-reduced-motion: reduce) {
+  .writing-card {
+    transition: none;
+  }
+
+  .writing-card:hover {
+    transform: none;
+    will-change: auto;
+  }
+
+  .writing-card-title {
+    transition: none;
+  }
+
+  .writing-all-link {
+    transition: none;
+  }
+
+  .writing-loading-dots span {
+    animation: none;
+  }
+}

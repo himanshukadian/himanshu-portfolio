@@ -10,6 +10,7 @@ import SEO from "./components/SEO";
 import ChatWidget from "./components/Chat/ChatWidget";
 import { ThemeProvider } from './context/ThemeContext';
 import "./style.css";
+import "./blog.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import NotFound from "./components/NotFound";
 import BackToTop from "./components/BackToTop";
