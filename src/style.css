@@ -51,6 +51,8 @@ html {
   --accent-glow: rgba(0, 255, 65, 0.3);      /* Green glow shadow */
   --accent-subtle: rgba(0, 255, 65, 0.08);   /* Subtle green tint */
   --accent-border: rgba(0, 255, 65, 0.25);   /* Green border tint */
+
+  --imp-text-color: #00ff41;                /* Important/accent text + ::selection bg (was left undefined → black-on-black) */
   
   /* Text Colors */
   --text-primary: #ffffff;         /* White for main text */
@@ -5796,6 +5798,30 @@ section, .about-section, .project-section, .resume-section, .contact-section {
 
 .host-terminal-window .k9s-term-matchrow {
   flex-shrink: 0;
+}
+
+/* Site bg is pure black — keep every interactive surface inside the terminal
+   light-on-dark so hover/focus/active/selection never hides text. */
+.host-terminal-window input,
+.host-terminal-window button,
+.host-terminal-window .k9s-palette-input,
+.host-terminal-window .k9s-term-match,
+.host-terminal-window .k9s-term-question,
+.host-terminal-window .k9s-palette-prompt {
+  color: #00ff41;
+}
+.host-terminal-window .k9s-palette-input {
+  background: transparent;
+}
+.host-terminal-window .k9s-term-match:hover,
+.host-terminal-window .k9s-term-match:active,
+.host-terminal-window .k9s-term-match:focus {
+  color: #00ff41;
+  background: rgba(0, 255, 65, 0.12);
+}
+.host-terminal-window ::selection {
+  background: #00ff41;
+  color: #000000;
 }
 
 @media (max-width: 767px) {
