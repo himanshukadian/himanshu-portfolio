@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { resumeData } from "../data/resume";
 import { aiService } from "../utils/aiService";
 import resumeService from "../utils/resumeService";
+import { buildContextWindow } from "../utils/contextManager";
+import { screenInput } from "../utils/guardrails";
+import { responseCache } from "../utils/semanticCache";
 // Mirrors the on-disk "Himanshu Chaudhary Resume.pdf" (buildwithhimanshu.com).
 const VFS = (() => {
   const exp = resumeData.experience || [];
@@ -612,6 +615,12 @@ const startHalo = useCallback(() => {
 
   const askHalo = useCallback(
     async (query) => {
+      const haloScreen = screenInput(query);
+      if (haloScreen.blocked) {
+        setHaloLog([]);
+        push("Halo: I can only help with questions about Himanshu's portfolio — that type of request is out of scope.", "err");
+        return;
+      }
       if (isWritingListIntent(query)) {
         setHaloBusy(true);
         setHaloLog(["fetching articles…"]);
@@ -654,12 +663,34 @@ const startHalo = useCallback(() => {
       let result = null;
       let partialStream = "";
 
+      const haloWindow = buildContextWindow(haloHistoryRef.current);
+
+      // Serve from semantic cache to avoid needless re-streaming.
+      if (!haloScreen.blocked) {
+        const cached = responseCache.get(`halo:${query}`);
+        if (cached) {
+          setHaloLog([]);
+          partialStream = cached.text || "";
+          if (partialStream) {
+            streamingLineRef.current = partialStream;
+            setStreamingLine(partialStream);
+            await new Promise((r) => setTimeout(r, 40));
+            push(partialStream, "ai");
+          } else {
+            push("(no response)", "ai");
+          }
+          streamingLineRef.current = "";
+          setStreamingLine("");
+          return;
+        }
+      }
+
       try {
         setHaloLog(["streaming…"]);
         const res = await fetch(HALO_STREAM_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, chatHistory: haloHistoryRef.current }),
+          body: JSON.stringify({ query, chatHistory: haloWindow.messages }),
         });
 
         if (res.status === 429) {
@@ -740,6 +771,9 @@ const startHalo = useCallback(() => {
         }
 
         result = { text: finalText, sources, model };
+        if (!haloScreen.blocked) {
+          responseCache.set(`halo:${query}`, { text: finalText, sources, model, fellback: false, contextUsed: true, suggestions: [] });
+        }
 
         const h = haloHistoryRef.current;
         h.push({ type: "user", content: query });
@@ -791,6 +825,9 @@ const startHalo = useCallback(() => {
             });
           }
           result = { text, sources, model: data?.data?.model || "" };
+          if (!haloScreen.blocked) {
+            responseCache.set(`halo:${query}`, { text, sources, model: data?.data?.model || "", fellback: false, contextUsed: Boolean(data?.data?.contextUsed), suggestions: [] });
+          }
           const h = haloHistoryRef.current;
           h.push({ type: "user", content: query });
           h.push({ type: "assistant", content: text });
@@ -1256,15 +1293,6 @@ const startHalo = useCallback(() => {
       }
       return;
     }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      if (haloMode) {
-        exitHalo();
-        return;
-      }
-      close();
-      return;
-    }
     if (e.key === "ArrowUp") {
       e.preventDefault();
       if (history.length === 0) return;
@@ -1315,6 +1343,19 @@ const startHalo = useCallback(() => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, openTerminal]);
+
+  // ESC exits HALO or closes the terminal regardless of where focus is.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      if (haloMode) exitHalo();
+      else close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, haloMode, exitHalo, close]);
 
   useEffect(() => {
     if (open && inputRef.current && !haloBusy) inputRef.current.focus();

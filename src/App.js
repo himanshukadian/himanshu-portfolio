@@ -9,9 +9,11 @@ import Loader from "./components/Loader";
 import SEO from "./components/SEO";
 import ChatWidget from "./components/Chat/ChatWidget";
 import { ThemeProvider } from './context/ThemeContext';
+import { initEvals } from './utils/guardrails';
 import "./style.css";
 import "./blog.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "./no-hover.css";
 import NotFound from "./components/NotFound";
 import BackToTop from "./components/BackToTop";
 import SectionDots from "./components/SectionDots";
@@ -330,6 +332,7 @@ function Shell() {
 }
 
 function App() {
+  initEvals({ parent: true });
   return (
     <ErrorBoundary>
       <HelmetProvider>

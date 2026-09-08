@@ -3,6 +3,7 @@ import ChatMessage from './ChatMessage'
 import MessageInput from './MessageInput'
 import SchedulingWidget from './SchedulingWidget'
 import { aiService } from '../../utils/aiService'
+import { screenInput, logEval } from '../../utils/guardrails'
 
 const MONO = "'Fira Code', monospace"
 const GREEN = '#00ff41'
@@ -169,6 +170,18 @@ const ChatWidget = () => {
     const text = String(messageText || '').trim()
     if (!text || busyRef.current) return
 
+    // Pre-model input screen (guardrail). Block obvious abuse before it
+    // reaches the model; avoid forwarding sensitive payloads.
+    const inputScreen = screenInput(text)
+    if (inputScreen.blocked) {
+      logEval('guardrail.blocked', { kind: inputScreen.hasCardNumber ? 'card' : 'injection' })
+      commitMessages([...messagesRef.current,
+        { id: makeMessageId(), type: 'user', content: text, timestamp: new Date() },
+        { id: makeMessageId(), type: 'assistant', content: "I can only help with questions about Himanshu's portfolio — that type of request is out of scope.", streaming: false, sources: [], suggestions: [], model: 'guardrail', contextUsed: false, fellback: true, timestamp: new Date() }
+      ])
+      return
+    }
+
     const queryIntent = aiService.categorizeQuery(text)
     const meetingIntent = queryIntent.category === 'meeting_scheduling'
     const resumeIntent = queryIntent.category === 'resume_customization'
@@ -187,6 +200,7 @@ const ChatWidget = () => {
 
     const chatHistory = messagesRef.current
       .filter((message) => message.type === 'user' || message.type === 'assistant')
+      .slice(-14) // bounded working window: last 14 exchanges (28 messages total cap)
       .map((message) => ({
         role: message.type === 'user' ? 'user' : 'assistant',
         content: message.content
